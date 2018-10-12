@@ -19,6 +19,7 @@ if [ $h2cChannels -gt 0 ]; then
   for ((i=0; i<=3; i++))
   do
     addrOffset=$(($transferSize * $i))
+    addrOffset=$((addrOffset + 0x80000000))
     curChannel=$(($i % $h2cChannels))
     echo "Info: Writing to h2c channel $curChannel at address offset $addrOffset."
     $tool_path/dma_to_device -d /dev/xdma0_h2c_${curChannel} -f data/datafile${i}_4K.bin -s $transferSize -a $addrOffset -c $transferCount &
@@ -39,6 +40,7 @@ if [ $c2hChannels -gt 0 ]; then
   for ((i=0; i<=3; i++))
   do
     addrOffset=$(($transferSize * $i))
+    addrOffset=$((addrOffset + 0x80000000))
     curChannel=$(($i % $c2hChannels))
     rm -f data/output_datafile${i}_4K.bin
     echo "Info: Reading from c2h channel $curChannel at address offset $addrOffset."
