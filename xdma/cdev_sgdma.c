@@ -4,10 +4,17 @@
  * Copyright (c) 2016-present,  Xilinx, Inc.
  * All rights reserved.
  *
- * This source code is licensed under both the BSD-style license (found in the
- * LICENSE file in the root directory of this source tree) and the GPLv2 (found
- * in the COPYING file in the root directory of this source tree).
- * You may select, at your option, one of the above-listed licenses.
+ * This source code is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * The full GNU General Public License is included in this distribution in
+ * the file called "COPYING".
  */
 
 #define pr_fmt(fmt)     KBUILD_MODNAME ":%s: " fmt, __func__
@@ -200,8 +207,8 @@ static int char_sgdma_map_user_buf_to_sgl(struct xdma_io_cb *cb, bool write)
 	if (rv != pages_nr) {
 		pr_err("unable to pin down all %u user pages, %d.\n",
 			pages_nr, rv);
-		rv = -EFAULT;
 		cb->pages_nr = rv;
+		rv = -EFAULT;
 		goto err_out;
 	}
 
@@ -217,7 +224,6 @@ static int char_sgdma_map_user_buf_to_sgl(struct xdma_io_cb *cb, bool write)
 
 	sg = sgt->sgl;
 	for (i = 0; i < pages_nr; i++, sg = sg_next(sg)) {
-		//unsigned int offset = (uintptr_t)buf & ~PAGE_MASK;
 		unsigned int offset = offset_in_page(buf);
 		unsigned int nbytes = min_t(unsigned int, PAGE_SIZE - offset, len);
 
@@ -280,9 +286,6 @@ static ssize_t char_sgdma_read_write(struct file *file, char __user *buf,
 
 	res = xdma_xfer_submit(xdev, engine->channel, write, *pos, &cb.sgt,
 				0, sgdma_timeout * 1000);	
-	//pr_err("xfer_submit return=%lld.\n", (s64)res);
-
-	//interrupt_status(xdev);
 
 	char_sgdma_unmap_user_buf(&cb, write);
 
@@ -358,7 +361,11 @@ static int ioctl_do_perf_start(struct xdma_engine *engine, unsigned long arg)
 	enable_perf(engine);
         dbg_perf("transfer_size = %d\n", engine->xdma_perf->transfer_size);
         /* initialize wait queue */
+#if	LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
+        init_swait_queue_head(&engine->xdma_perf_wq);
+#else
         init_waitqueue_head(&engine->xdma_perf_wq);
+#endif
         xdma_performance_submit(xdev, engine);
 
         return 0;
@@ -390,6 +397,9 @@ static int ioctl_do_perf_stop(struct xdma_engine *engine, unsigned long arg)
                         dbg_perf("Error copying result to user\n");
                         return -EINVAL;
                 }
+
+		if (transfer)
+			kfree(transfer);	
         } else {
                 dbg_perf("engine->xdma_perf == NULL?\n");
         }

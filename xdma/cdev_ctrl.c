@@ -4,10 +4,17 @@
  * Copyright (c) 2016-present,  Xilinx, Inc.
  * All rights reserved.
  *
- * This source code is licensed under both the BSD-style license (found in the
- * LICENSE file in the root directory of this source tree) and the GPLv2 (found
- * in the COPYING file in the root directory of this source tree).
- * You may select, at your option, one of the above-listed licenses.
+ * This source code is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * The full GNU General Public License is included in this distribution in
+ * the file called "COPYING".
  */
 
 #define pr_fmt(fmt)     KBUILD_MODNAME ":%s: " fmt, __func__
@@ -123,8 +130,12 @@ long char_ctrl_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	rv = xcdev_check(__func__, xcdev, 0);
 	if (rv < 0)
 		return rv;	
-	xdev = xcdev->xdev;
 
+	xdev = xcdev->xdev;
+	if (!xdev) {
+		pr_info("cmd %u, xdev NULL.\n", cmd);
+		return -EINVAL;
+	}
 	pr_info("cmd 0x%x, xdev 0x%p, pdev 0x%p.\n", cmd, xdev, xdev->pdev);
 
 	if (_IOC_TYPE(cmd) != XDMA_IOC_MAGIC) {
@@ -158,20 +169,11 @@ long char_ctrl_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 				ioctl_obj.magic, XDMA_XCL_MAGIC);
 			return -ENOTTY;
 		}
-
 		return version_ioctl(xcdev, (void __user *)arg);
 	case XDMA_IOCOFFLINE:
-		if (!xdev) {
-			pr_info("cmd %u, xdev NULL.\n", cmd);
-			return -EINVAL;
-		}
 		xdma_device_offline(xdev->pdev, xdev);
 		break;
 	case XDMA_IOCONLINE:
-		if (!xdev) {
-			pr_info("cmd %u, xdev NULL.\n", cmd);
-			return -EINVAL;
-		}
 		xdma_device_online(xdev->pdev, xdev);
 		break;
 	default:

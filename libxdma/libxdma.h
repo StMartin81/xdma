@@ -4,10 +4,17 @@
  * Copyright (c) 2016-present,  Xilinx, Inc.
  * All rights reserved.
  *
- * This source code is licensed under both the BSD-style license (found in the
- * LICENSE file in the root directory of this source tree) and the GPLv2 (found
- * in the COPYING file in the root directory of this source tree).
- * You may select, at your option, one of the above-listed licenses.
+ * This source code is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * The full GNU General Public License is included in this distribution in
+ * the file called "COPYING".
  */
 
 #ifndef XDMA_LIB_H
@@ -24,6 +31,14 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/workqueue.h>
+#if	LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
+#include <linux/swait.h>
+#endif
+/*
+ *  if the config bar is fixed, the driver does not neeed to search through 
+ *  all of the bars
+ */
+//#define XDMA_CONFIG_BAR_NUM	1
 
 /* Switch debug printing on/off */
 #define XDMA_DEBUG 0
@@ -381,7 +396,11 @@ struct xdma_transfer {
 	int desc_adjacent;		/* adjacent descriptors at desc_bus */
 	int desc_num;			/* number of descriptors in transfer */
 	enum dma_data_direction dir;
+#if	LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
+	struct swait_queue_head wq;
+#else
 	wait_queue_head_t wq;		/* wait queue for transfer completion */
+#endif
 
 	enum transfer_state state;	/* state of the transfer */
 	unsigned int flags;
@@ -442,7 +461,7 @@ struct xdma_engine {
 	struct xdma_request_cb *cyclic_req; 
 	struct sg_table cyclic_sgt; 
 	u8 eop_found; /* used only for cyclic(rx:c2h) */
-
+	int eop_count;
 	int rx_tail;	/* follows the HW */
 	int rx_head;	/* where the SW reads from */
 	int rx_overrun;	/* flag if overrun occured */
@@ -455,7 +474,11 @@ struct xdma_engine {
 	dma_addr_t poll_mode_bus;	/* bus addr for descriptor writeback */
 
 	/* Members associated with interrupt mode support */
+#if	LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
+	struct swait_queue_head shutdown_wq;
+#else
 	wait_queue_head_t shutdown_wq;	/* wait queue for shutdown sync */
+#endif
 	spinlock_t lock;		/* protects concurrent access */
 	int prev_cpu;			/* remember CPU# of (last) locker */
 	int msix_irq_line;		/* MSI-X vector for this engine */
@@ -468,7 +491,11 @@ struct xdma_engine {
 
 	/* for performance test support */
 	struct xdma_performance_ioctl *xdma_perf;	/* perf test control */
+#if	LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
+	struct swait_queue_head xdma_perf_wq;
+#else
 	wait_queue_head_t xdma_perf_wq;	/* Perf test sync */
+#endif
 };
 
 struct xdma_user_irq {

@@ -4,10 +4,17 @@
  * Copyright (c) 2016-present,  Xilinx, Inc.
  * All rights reserved.
  *
- * This source code is licensed under both the BSD-style license (found in the
- * LICENSE file in the root directory of this source tree) and the GPLv2 (found
- * in the COPYING file in the root directory of this source tree).
- * You may select, at your option, one of the above-listed licenses.
+ * This source code is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * The full GNU General Public License is included in this distribution in
+ * the file called "COPYING".
  */
 
 #define pr_fmt(fmt)     KBUILD_MODNAME ":%s: " fmt, __func__
@@ -30,7 +37,7 @@
 #include "version.h"
 #define DRV_MODULE_NAME		"libxdma"
 #define DRV_MODULE_DESC		"Xilinx XDMA Base Driver"
-#define DRV_MODULE_RELDATE	"Feb. 2018"
+#define DRV_MODULE_RELDATE	"Dec. 2018"
 
 static char version[] =
         DRV_MODULE_DESC " " DRV_MODULE_NAME " v" DRV_MODULE_VERSION "\n";
@@ -661,7 +668,11 @@ static void engine_service_shutdown(struct xdma_engine *engine)
 	engine->running = 0;
 
 	/* awake task on engine's shutdown wait queue */
+#if	LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
+	swake_up(&engine->shutdown_wq);
+#else
 	wake_up_interruptible(&engine->shutdown_wq);
+#endif
 }
 
 struct xdma_transfer *engine_transfer_completion(struct xdma_engine *engine,
@@ -676,7 +687,11 @@ struct xdma_transfer *engine_transfer_completion(struct xdma_engine *engine,
 
 	/* synchronous I/O? */
 	/* awake task on transfer's wait queue */
+#if	LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
+	swake_up(&transfer->wq);
+#else
 	wake_up_interruptible(&transfer->wq);
+#endif
 
 	return transfer;
 }
@@ -842,7 +857,11 @@ static void engine_service_perf(struct xdma_engine *engine, u32 desc_completed)
 			 * wake any XDMA_PERF_IOCTL_STOP waiting for
 			 * the performance run to finish
 			 */
+#if	LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
+			swake_up(&engine->xdma_perf_wq);
+#else
 			wake_up_interruptible(&engine->xdma_perf_wq);
+#endif
 			dbg_perf("transfer->xdma_perf stopped\n");
 		}
 	}
@@ -912,7 +931,7 @@ static int engine_ring_process(struct xdma_engine *engine)
 
 static int engine_service_cyclic_polled(struct xdma_engine *engine)
 {
-	int eop_count = 0;
+    int eop_count = engine->eop_count;
 	int rc = 0;
 	struct xdma_poll_wb *writeback_data;
 	u32 sched_limit = 0;
@@ -948,7 +967,8 @@ static int engine_service_cyclic_polled(struct xdma_engine *engine)
 			engine_service_shutdown(engine);
 		}
 	}
-
+    eop_count--;
+    engine->eop_count = eop_count;
 	return rc;
 }
 
@@ -972,13 +992,21 @@ static int engine_service_cyclic_interrupt(struct xdma_engine *engine)
 		if (eop_count > 0) {
 			//engine->eop_found = 1;
 		}
+#if	LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
+		swake_up(&xfer->wq);
+#else
 		wake_up_interruptible(&xfer->wq);
+#endif
 	}else{
 		if (eop_count > 0) {
 			/* awake task on transfer's wait queue */
 			dbg_tfr("wake_up_interruptible() due to %d EOP's\n", eop_count);
 			engine->eop_found = 1;
+#if	LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
+			swake_up(&xfer->wq);
+#else
 			wake_up_interruptible(&xfer->wq);
+#endif
 		}
 	}
 
@@ -1031,7 +1059,11 @@ static void engine_service_resume(struct xdma_engine *engine)
 		} else if (engine->shutdown & ENGINE_SHUTDOWN_REQUEST) {
 			engine->shutdown |= ENGINE_SHUTDOWN_IDLE;
 			/* awake task on engine's shutdown wait queue */
+#if	LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
+			swake_up(&engine->shutdown_wq);
+#else
 			wake_up_interruptible(&engine->shutdown_wq);
+#endif
 		} else {
 			dbg_tfr("no pending transfers, %s engine stays idle.\n",
 				engine->name);
@@ -1529,6 +1561,7 @@ static int is_config_bar(struct xdma_dev *xdev, int idx)
 	return flag;
 }
 
+#ifndef XDMA_CONFIG_BAR_NUM
 static void identify_bars(struct xdma_dev *xdev, int *bar_id_list, int num_bars,
 			int config_bar_pos)
 {
@@ -1592,6 +1625,7 @@ static void identify_bars(struct xdma_dev *xdev, int *bar_id_list, int num_bars,
 		num_bars, config_bar_pos, xdev->user_bar_idx,
 		xdev->bypass_bar_idx);
 }
+#endif
 
 /* map_bars() -- map device regions into kernel virtual address space
  *
@@ -1601,6 +1635,24 @@ static void identify_bars(struct xdma_dev *xdev, int *bar_id_list, int num_bars,
 static int map_bars(struct xdma_dev *xdev, struct pci_dev *dev)
 {
 	int rv;
+
+#ifdef XDMA_CONFIG_BAR_NUM
+	rv = map_single_bar(xdev, dev, XDMA_CONFIG_BAR_NUM);
+	if (rv <= 0) {
+		pr_info("%s, map config bar %d failed, %d.\n",
+                        dev_name(&dev->dev), XDMA_CONFIG_BAR_NUM, rv);
+		return -EINVAL;
+	}
+
+	if (is_config_bar(xdev, XDMA_CONFIG_BAR_NUM) == 0) {
+		pr_info("%s, unable to identify config bar %d.\n",
+                        dev_name(&dev->dev), XDMA_CONFIG_BAR_NUM);
+		return -EINVAL;
+	}
+	xdev->config_bar_idx = XDMA_CONFIG_BAR_NUM;
+
+	return 0;
+#else
 	int i;
 	int bar_id_list[XDMA_BAR_NUM];
 	int bar_id_idx = 0;
@@ -1640,24 +1692,7 @@ static int map_bars(struct xdma_dev *xdev, struct pci_dev *dev)
 		goto fail;
 	}
 
-#ifdef __LIBXDMA_CONFIG_BAR_ONLY__
-	/* unmapped all other bars, except XDMA config. bar */
-	for (i = 0; i < XDMA_BAR_NUM; i++) {
-		if (i == xdev->config_bar_idx)
-			continue;
-
-		/* is this BAR mapped? */
-		if (xdev->bar[i]) {
-			/* unmap BAR */
-			pci_iounmap(dev, xdev->bar[i]);
-			/* mark as unmapped */
-			xdev->bar[i] = NULL;
-			pr_info("unmap non-config bar %d.\n", i);
-		}
-	}
-#else
 	identify_bars(xdev, bar_id_list, bar_id_idx, config_bar_pos);
-#endif
 
 	/* successfully mapped all required BAR regions */
 	return 0;
@@ -1666,6 +1701,7 @@ fail:
 	/* unwind; unmap any BARs that we did map */
 	unmap_bars(xdev, dev);
 	return rv;
+#endif
 }
 
 /*
@@ -2812,7 +2848,11 @@ static int transfer_init(struct xdma_engine *engine, struct xdma_request_cb *req
 	memset(xfer, 0, sizeof(*xfer));
 
 	/* initialize wait queue */
+#if	LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
+	init_swait_queue_head(&xfer->wq);
+#else
 	init_waitqueue_head(&xfer->wq);
+#endif
 
 	/* remember direction of transfer */
 	xfer->dir = engine->dir;
@@ -3080,13 +3120,15 @@ ssize_t xdma_xfer_submit(void *dev_hndl, int channel, bool write, u64 ep_addr,
 			spin_lock_irqsave(&engine->lock, flags);
                         desc_count = xfer->desc_num;
 			spin_unlock_irqrestore(&engine->lock, flags);
-
-                        dbg_tfr("%s poll desc_count=%d\n",
-				engine->name, desc_count);
-			rv = engine_service_poll(engine, desc_count);
+			dbg_tfr("%s poll desc_count=%d\n", engine->name, desc_count);
+			engine_service_poll(engine, desc_count);
 
 		} else {
-			rv = wait_event_interruptible_timeout(xfer->wq,
+#if	LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
+			swait_event_interruptible_timeout(xfer->wq,
+#else
+			wait_event_interruptible_timeout(xfer->wq,
+#endif
                 	        (xfer->state != TRANSFER_STATE_SUBMITTED),
 				msecs_to_jiffies(timeout_ms));
 		}
@@ -3221,7 +3263,11 @@ int xdma_performance_submit(struct xdma_dev *xdev, struct xdma_engine *engine)
 	transfer->cyclic = 1;
 
 	/* initialize wait queue */
+#if	LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
+	init_swait_queue_head(&transfer->wq);
+#else
 	init_waitqueue_head(&transfer->wq);
+#endif
 
 	//printk("=== Descriptor print for PERF \n");
 	//transfer_dump(transfer);
@@ -3274,8 +3320,13 @@ static struct xdma_dev *alloc_dev_instance(struct pci_dev *pdev)
 		spin_lock_init(&engine->lock);
 		spin_lock_init(&engine->desc_lock);
 		INIT_LIST_HEAD(&engine->transfer_list);
+#if	LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
+		init_swait_queue_head(&engine->shutdown_wq);
+		init_swait_queue_head(&engine->xdma_perf_wq);
+#else
 		init_waitqueue_head(&engine->shutdown_wq);
 		init_waitqueue_head(&engine->xdma_perf_wq);
+#endif
 	}
 
 	engine = xdev->engine_c2h;
@@ -3283,8 +3334,13 @@ static struct xdma_dev *alloc_dev_instance(struct pci_dev *pdev)
 		spin_lock_init(&engine->lock);
 		spin_lock_init(&engine->desc_lock);
 		INIT_LIST_HEAD(&engine->transfer_list);
+#if	LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
+		init_swait_queue_head(&engine->shutdown_wq);
+		init_swait_queue_head(&engine->xdma_perf_wq);
+#else
 		init_waitqueue_head(&engine->shutdown_wq);
 		init_waitqueue_head(&engine->xdma_perf_wq);
+#endif
 	}
 
 	return xdev;
@@ -3465,12 +3521,12 @@ static int probe_engines(struct xdma_dev *xdev)
 }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
-static void pci_enable_relaxed_ordering(struct pci_dev *pdev)
+static void pci_enable_capability(struct pci_dev *pdev, int cap)
 {
-	pcie_capability_set_word(pdev, PCI_EXP_DEVCTL, PCI_EXP_DEVCTL_RELAX_EN);
+	pcie_capability_set_word(pdev, PCI_EXP_DEVCTL, cap);
 }
 #else
-static void pci_enable_relaxed_ordering(struct pci_dev *pdev)
+static void pci_enable_capability(struct pci_dev *pdev, int cap)
 {
 	u16 v;
 	int pos;
@@ -3478,49 +3534,11 @@ static void pci_enable_relaxed_ordering(struct pci_dev *pdev)
 	pos = pci_pcie_cap(pdev);
 	if (pos > 0) {
 		pci_read_config_word(pdev, pos + PCI_EXP_DEVCTL, &v);
-		v |= PCI_EXP_DEVCTL_RELAX_EN;
+		v |= cap;
 		pci_write_config_word(pdev, pos + PCI_EXP_DEVCTL, v);
 	}
 }
 #endif
-
-static void pci_check_extended_tag(struct xdma_dev *xdev, struct pci_dev *pdev)
-{
-	u16 cap;
-	u32 v;
-	void *__iomem reg;
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
-	pcie_capability_read_word(pdev, PCI_EXP_DEVCTL, &cap);
-#else
-	int pos;
-
-	pos = pci_pcie_cap(pdev);
-	if (pos > 0)
-		pci_read_config_word(pdev, pos + PCI_EXP_DEVCTL, &cap);
-	else {
-		pr_info("pdev 0x%p, unable to access pcie cap.\n", pdev);
-		return;
-	}
-#endif
-
-	if ((cap & PCI_EXP_DEVCTL_EXT_TAG))
-		return;
-
-	/* extended tag not enabled */
-	pr_info("0x%p EXT_TAG disabled.\n", pdev);
-
-	if (xdev->config_bar_idx < 0) {
-		pr_info("pdev 0x%p, xdev 0x%p, config bar UNKNOWN.\n",
-			pdev, xdev);
-                return;
-	}
-
-	reg = xdev->bar[xdev->config_bar_idx] + XDMA_OFS_CONFIG + 0x4C;
-	v =  read_register(reg);
-	v = (v & 0xFF) | (((u32)32) << 8);
-	write_register(v, reg, XDMA_OFS_CONFIG + 0x4C);
-}
 
 void *xdma_device_open(const char *mname, struct pci_dev *pdev, int *user_max,
 			int *h2c_channel_max, int *c2h_channel_max)
@@ -3561,9 +3579,10 @@ void *xdma_device_open(const char *mname, struct pci_dev *pdev, int *user_max,
 	pci_check_intr_pend(pdev);
 
 	/* enable relaxed ordering */
-	pci_enable_relaxed_ordering(pdev);
+	pci_enable_capability(pdev, PCI_EXP_DEVCTL_RELAX_EN);
 
-	pci_check_extended_tag(xdev, pdev);
+	/* enable extended tag */
+	pci_enable_capability(pdev, PCI_EXP_DEVCTL_EXT_TAG);
 
 	/* force MRRS to be 512 */
 	rv = pcie_set_readrq(pdev, 512);
@@ -3912,14 +3931,20 @@ static int transfer_monitor_cyclic(struct xdma_engine *engine,
 					engine->name, rc);
 				rc = -ERESTARTSYS;
 			}
-			if (result[engine->rx_head].status)
-				return 0;
+			if (result[engine->rx_head].status){
+				rc =  0;
+				break;
+			}
 		}
 	} else {
 		if (enable_credit_mp){
 			dbg_tfr("%s: rx_head=%d,rx_tail=%d, wait ...\n",
 				engine->name, engine->rx_head, engine->rx_tail);
+#if	LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
+			rc = swait_event_interruptible_timeout( transfer->wq,
+#else
 			rc = wait_event_interruptible_timeout( transfer->wq,
+#endif
 					(engine->rx_head!=engine->rx_tail ||
 					 engine->rx_overrun),
 					msecs_to_jiffies(timeout_ms));
@@ -3927,15 +3952,24 @@ static int transfer_monitor_cyclic(struct xdma_engine *engine,
 				 engine->name, rc, engine->rx_head,
 				engine->rx_tail, engine->rx_overrun);
 		} else {
+#if	LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
+			rc = swait_event_interruptible_timeout( transfer->wq,
+#else
 			rc = wait_event_interruptible_timeout( transfer->wq,
+#endif
 					engine->eop_found,
 					msecs_to_jiffies(timeout_ms));
 			dbg_tfr("%s: wait returns %d, eop_found %d.\n",
 				engine->name, rc, engine->eop_found);
 		}
+
+		if(rc ==  0)  // condition evaluated to false after the timeout elapsed
+			rc = -1;
+		else if( rc > 0) // condition evaluated to true
+			rc = 0;
 	}
 
-	return 0;
+	return rc;
 }
 
 struct scatterlist *sglist_index(struct sg_table *sgt, unsigned int idx)
@@ -4203,12 +4237,6 @@ err_out:
 	return -ENOMEM; 
 }
 
-/*
- * !NOTE! reference/demo purpose only 
- * xdma_cyclic_transfer_setup is used for streaming C2H transfers:
- * - A list of buffers are pre-allocated for incoming streaming data
- * - the ring of the buffers is allowed to wrap around
- */
 int xdma_cyclic_transfer_setup(struct xdma_engine *engine)
 {
 	struct xdma_dev *xdev;
@@ -4349,7 +4377,11 @@ static int cyclic_shutdown_interrupt(struct xdma_engine *engine)
 
 	BUG_ON(!engine);
 
+#if	LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
+	rc = swait_event_interruptible_timeout(engine->shutdown_wq,
+#else
 	rc = wait_event_interruptible_timeout(engine->shutdown_wq,
+#endif
 				!engine->running, msecs_to_jiffies(10000));
 
 #if 0
@@ -4439,4 +4471,3 @@ int engine_addrmode_set(struct xdma_engine *engine, unsigned long arg)
 
 	return rv;
 }
-

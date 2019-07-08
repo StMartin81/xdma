@@ -31,7 +31,5 @@ clean:
 
 install: all
 	$(MAKE) -C $(BUILDSYSTEM_DIR) M=$(PWD) modules_install
-	depmod -a
-	install -m 644 ../etc/udev/rules.d/10-xdma.rules /etc/udev/rules.d
 
 endif

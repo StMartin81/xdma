@@ -4,10 +4,17 @@
  * Copyright (c) 2016-present,  Xilinx, Inc.
  * All rights reserved.
  *
- * This source code is licensed under both the BSD-style license (found in the
- * LICENSE file in the root directory of this source tree) and the GPLv2 (found
- * in the COPYING file in the root directory of this source tree).
- * You may select, at your option, one of the above-listed licenses.
+ * This source code is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * The full GNU General Public License is included in this distribution in
+ * the file called "COPYING".
  */
 
 #define pr_fmt(fmt)     KBUILD_MODNAME ":%s: " fmt, __func__
@@ -33,7 +40,7 @@ static char version[] =
 MODULE_AUTHOR("Xilinx, Inc.");
 MODULE_DESCRIPTION(DRV_MODULE_DESC);
 MODULE_VERSION(DRV_MODULE_VERSION);
-MODULE_LICENSE("Dual BSD/GPL");
+MODULE_LICENSE("GPL");
 
 /* SECTION: Module global variables */
 static int xpdev_cnt = 0;
@@ -147,8 +154,10 @@ static int probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	hndl = xdma_device_open(DRV_MODULE_NAME, pdev, &xpdev->user_max,
 			&xpdev->h2c_channel_max, &xpdev->c2h_channel_max);
-	if (!hndl)
-		return -EINVAL;
+	if (!hndl){
+		rv =  -EINVAL;
+		goto err_out;
+	}
 
 	BUG_ON(xpdev->user_max > MAX_USER_IRQ);
 	BUG_ON(xpdev->h2c_channel_max > XDMA_CHANNEL_NUM_MAX);
@@ -169,7 +178,8 @@ static int probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	xdev = xdev_find_by_pdev(pdev);
 	if (!xdev) {
 		pr_warn("NO xdev found!\n");
-		return -EINVAL;
+		rv =  -EINVAL;
+		goto err_out;
 	}
 	BUG_ON(hndl != xdev );
 
@@ -184,7 +194,7 @@ static int probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rv)
 		goto err_out;
 
-        dev_set_drvdata(&pdev->dev, xpdev);
+	dev_set_drvdata(&pdev->dev, xpdev);
 
 	return 0;
 
