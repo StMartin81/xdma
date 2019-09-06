@@ -21,6 +21,7 @@
 #define _XDMA_IOCALLS_POSIX_H_
 
 #include <linux/ioctl.h>
+#include <linux/kernel.h>
 
 #define IOCTL_XDMA_PERF_V1 (1)
 #define XDMA_ADDRMODE_MEMORY (0)
@@ -48,14 +49,14 @@
 struct xdma_performance_ioctl
 {
   /* IOCTL_XDMA_IOCTL_Vx */
-  uint32_t version;
-  uint32_t transfer_size;
+  u32 version;
+  u32 transfer_size;
   /* measurement */
-  uint32_t stopped;
-  uint32_t iterations;
-  uint64_t clock_cycle_count;
-  uint64_t data_cycle_count;
-  uint64_t pending_count;
+  u32 stopped;
+  u32 iterations;
+  u64 clock_cycle_count;
+  u64 data_cycle_count;
+  u64 pending_count;
 };
 
 /* IOCTL codes */
