@@ -82,6 +82,13 @@ static DEFINE_SPINLOCK(xdev_rcu_lock);
 #define list_last_entry(ptr, type, member) list_entry((ptr)->prev, type, member)
 #endif
 
+void*
+get_config_bar_address(struct xdma_engine* engine)
+{
+  struct xdma_dev* xdev = engine->xdev;
+  return xdev->bar[xdev->config_bar_idx];
+}
+
 static inline void
 xdev_list_add(struct xdma_dev* xdev)
 {
@@ -164,14 +171,15 @@ debug_check_dev_hndl(const char* fname, struct pci_dev* pdev, void* hndl)
 #ifdef __LIBXDMA_DEBUG__
 /* SECTION: Function definitions */
 inline void
-__write_register(const char* fn, u32 value, void* iomem, unsigned long off)
+__write_register(const char* fn, u32 value, void* iomem, size_t off)
 {
   pr_err("%s: w reg 0x%lx(0x%p), 0x%x.\n", fn, off, iomem, value);
-  iowrite32(value, iomem);
+  iowrite32(value, iomem + off);
 }
-#define write_register(v, mem, off) __write_register(__func__, v, mem, off)
+#define write_register(v, mem, off)                                            \
+  __write_register(__func__, (v), (mem), (off))
 #else
-#define write_register(v, mem, off) iowrite32(v, mem)
+#define write_register(v, mem, off) iowrite32(v, (mem + off))
 #endif
 
 inline u32
@@ -245,44 +253,52 @@ check_nonzero_interrupt_status(struct xdma_dev* xdev)
 static void
 channel_interrupts_enable(struct xdma_dev* xdev, u32 mask)
 {
+  void* base_address = xdev->bar[xdev->config_bar_idx];
   struct interrupt_regs* reg =
-    (struct interrupt_regs*)(xdev->bar[xdev->config_bar_idx] +
-                             XDMA_OFS_INT_CTRL);
+    (struct interrupt_regs*)(base_address + XDMA_OFS_INT_CTRL);
 
-  write_register(mask, &reg->channel_int_enable_w1s, XDMA_OFS_INT_CTRL);
+  write_register(mask,
+                 base_address,
+                 (size_t)&reg->channel_int_enable_w1s - (size_t)base_address);
 }
 
 /* channel_interrupts_disable -- Disable interrupts we not interested in */
 static void
 channel_interrupts_disable(struct xdma_dev* xdev, u32 mask)
 {
+  void* base_address = xdev->bar[xdev->config_bar_idx];
   struct interrupt_regs* reg =
-    (struct interrupt_regs*)(xdev->bar[xdev->config_bar_idx] +
-                             XDMA_OFS_INT_CTRL);
+    (struct interrupt_regs*)(base_address + XDMA_OFS_INT_CTRL);
 
-  write_register(mask, &reg->channel_int_enable_w1c, XDMA_OFS_INT_CTRL);
+  write_register(mask,
+                 base_address,
+                 (size_t)&reg->channel_int_enable_w1c - (size_t)base_address);
 }
 
 /* user_interrupts_enable -- Enable interrupts we are interested in */
 static void
 user_interrupts_enable(struct xdma_dev* xdev, u32 mask)
 {
+  void* base_address = xdev->bar[xdev->config_bar_idx];
   struct interrupt_regs* reg =
-    (struct interrupt_regs*)(xdev->bar[xdev->config_bar_idx] +
-                             XDMA_OFS_INT_CTRL);
+    (struct interrupt_regs*)(base_address + XDMA_OFS_INT_CTRL);
 
-  write_register(mask, &reg->user_int_enable_w1s, XDMA_OFS_INT_CTRL);
+  write_register(mask,
+                 base_address,
+                 (size_t)&reg->user_int_enable_w1s - (size_t)base_address);
 }
 
 /* user_interrupts_disable -- Disable interrupts we not interested in */
 static void
 user_interrupts_disable(struct xdma_dev* xdev, u32 mask)
 {
+  void* base_address = xdev->bar[xdev->config_bar_idx];
   struct interrupt_regs* reg =
-    (struct interrupt_regs*)(xdev->bar[xdev->config_bar_idx] +
-                             XDMA_OFS_INT_CTRL);
+    (struct interrupt_regs*)(base_address + XDMA_OFS_INT_CTRL);
 
-  write_register(mask, &reg->user_int_enable_w1c, XDMA_OFS_INT_CTRL);
+  write_register(mask,
+                 base_address,
+                 (size_t)&reg->user_int_enable_w1c - (size_t)base_address);
 }
 
 /* read_interrupts -- Print the interrupt controller status */
@@ -313,18 +329,16 @@ void
 enable_perf(struct xdma_engine* engine)
 {
   u32 w;
+  void* base_address = get_config_bar_address(engine);
 
   w = XDMA_PERF_CLEAR;
-  write_register(w,
-                 &engine->regs->perf_ctrl,
-                 (unsigned long)(&engine->regs->perf_ctrl) -
-                   (unsigned long)(&engine->regs));
+  write_register(
+    w, base_address, (size_t)&engine->regs->perf_ctrl - (size_t)base_address);
   read_register(&engine->regs->identifier);
   w = XDMA_PERF_AUTO | XDMA_PERF_RUN;
   write_register(w,
                  &engine->regs->perf_ctrl,
-                 (unsigned long)(&engine->regs->perf_ctrl) -
-                   (unsigned long)(&engine->regs));
+                 (size_t)&engine->regs->perf_ctrl - (size_t)base_address);
   read_register(&engine->regs->identifier);
 
   dbg_perf("IOCTL_XDMA_PERF_START\n");
@@ -547,9 +561,12 @@ static void
 xdma_engine_stop(struct xdma_engine* engine)
 {
   u32 w;
+  void* base_address;
 
   BUG_ON(!engine);
   dbg_tfr("xdma_engine_stop(engine=%p)\n", engine);
+
+  base_address = get_config_bar_address(engine);
 
   w = 0;
   w |= (u32)XDMA_CTRL_IE_DESC_ALIGN_MISMATCH;
@@ -573,10 +590,8 @@ xdma_engine_stop(struct xdma_engine* engine)
           engine->name,
           w,
           (u32*)&engine->regs->control);
-  write_register(w,
-                 &engine->regs->control,
-                 (unsigned long)(&engine->regs->control) -
-                   (unsigned long)(&engine->regs));
+  write_register(
+    w, base_address, (size_t)&engine->regs->control - (size_t)base_address);
   /* dummy read of status register to flush all previous writes */
   dbg_tfr("xdma_engine_stop(%s) done\n", engine->name);
 }
@@ -585,8 +600,11 @@ static void
 engine_start_mode_config(struct xdma_engine* engine)
 {
   u32 w;
+  void* base_address;
 
   BUG_ON(!engine);
+
+  base_address = get_config_bar_address(engine);
 
   /* If a perf test is running, enable the engine interrupts */
   if (engine->xdma_perf) {
@@ -599,9 +617,9 @@ engine_start_mode_config(struct xdma_engine* engine)
     w |= XDMA_CTRL_IE_DESC_ERROR;
 
     write_register(w,
-                   &engine->regs->interrupt_enable_mask,
-                   (unsigned long)(&engine->regs->interrupt_enable_mask) -
-                     (unsigned long)(&engine->regs));
+                   base_address,
+                   (size_t)&engine->regs->interrupt_enable_mask -
+                     (size_t)base_address);
   }
 
   /* write control register of SG DMA engine */
@@ -629,10 +647,8 @@ engine_start_mode_config(struct xdma_engine* engine)
   dbg_tfr(
     "iowrite32(0x%08x to 0x%p) (control)\n", w, (void*)&engine->regs->control);
   /* start the engine */
-  write_register(w,
-                 &engine->regs->control,
-                 (unsigned long)(&engine->regs->control) -
-                   (unsigned long)(&engine->regs));
+  write_register(
+    w, base_address, (size_t)&engine->regs->control - (size_t)base_address);
 
   /* dummy read of status register to flush all previous writes */
   w = read_register(&engine->regs->status);
@@ -663,6 +679,7 @@ engine_start(struct xdma_engine* engine)
   struct xdma_transfer* transfer;
   u32 w;
   int extra_adj = 0;
+  void* base_address;
 
   /* engine must be idle */
   BUG_ON(engine->running);
@@ -672,6 +689,8 @@ engine_start(struct xdma_engine* engine)
   transfer =
     list_entry(engine->transfer_list.next, struct xdma_transfer, entry);
   BUG_ON(!transfer);
+
+  base_address = get_config_bar_address(engine);
 
   /* engine is no longer shutdown */
   engine->shutdown = ENGINE_SHUTDOWN_NONE;
@@ -687,18 +706,18 @@ engine_start(struct xdma_engine* engine)
           w,
           (void*)&engine->sgdma_regs->first_desc_lo);
   write_register(w,
-                 &engine->sgdma_regs->first_desc_lo,
-                 (unsigned long)(&engine->sgdma_regs->first_desc_lo) -
-                   (unsigned long)(&engine->sgdma_regs));
+                 base_address,
+                 (size_t)&engine->sgdma_regs->first_desc_lo -
+                   (size_t)base_address);
   /* write upper 32-bit of bus address of transfer first descriptor */
   w = cpu_to_le32(PCI_DMA_H(transfer->desc_bus));
   dbg_tfr("iowrite32(0x%08x to 0x%p) (first_desc_hi)\n",
           w,
           (void*)&engine->sgdma_regs->first_desc_hi);
   write_register(w,
-                 &engine->sgdma_regs->first_desc_hi,
-                 (unsigned long)(&engine->sgdma_regs->first_desc_hi) -
-                   (unsigned long)(&engine->sgdma_regs));
+                 base_address,
+                 (size_t)&engine->sgdma_regs->first_desc_hi -
+                   (size_t)base_address);
 
   if (transfer->desc_adjacent > 0) {
     extra_adj = transfer->desc_adjacent - 1;
@@ -709,9 +728,9 @@ engine_start(struct xdma_engine* engine)
           extra_adj,
           (void*)&engine->sgdma_regs->first_desc_adjacent);
   write_register(extra_adj,
-                 &engine->sgdma_regs->first_desc_adjacent,
-                 (unsigned long)(&engine->sgdma_regs->first_desc_adjacent) -
-                   (unsigned long)(&engine->sgdma_regs));
+                 base_address,
+                 (size_t)&engine->sgdma_regs->first_desc_adjacent -
+                   (size_t)base_address);
 
   dbg_tfr("ioread32(0x%p) (dummy read flushes writes).\n",
           &engine->regs->status);
@@ -1294,6 +1313,7 @@ engine_service_work(struct work_struct* work)
 {
   struct xdma_engine* engine;
   unsigned long flags;
+  void* base_address;
 
   engine = container_of(work, struct xdma_engine, work);
   BUG_ON(engine->magic != MAGIC_ENGINE);
@@ -1307,12 +1327,14 @@ engine_service_work(struct work_struct* work)
   else
     engine_service(engine, 0);
 
+  base_address = get_config_bar_address(engine);
+
   /* re-enable interrupts for this engine */
   if (engine->xdev->msix_enabled) {
     write_register(engine->interrupt_enable_mask_value,
-                   &engine->regs->interrupt_enable_mask_w1s,
-                   (unsigned long)(&engine->regs->interrupt_enable_mask_w1s) -
-                     (unsigned long)(&engine->regs));
+                   base_address,
+                   (size_t)engine->regs->interrupt_enable_mask_w1s -
+                     (size_t)base_address);
   } else
     channel_interrupts_enable(engine->xdev, engine->irq_bitmask);
 
@@ -1555,6 +1577,7 @@ xdma_channel_irq(int irq, void* dev_id)
   struct xdma_dev* xdev;
   struct xdma_engine* engine;
   struct interrupt_regs* irq_regs;
+  void* base_address;
 
   dbg_irq("(irq=%d) <<<< INTERRUPT service ROUTINE\n", irq);
   BUG_ON(!dev_id);
@@ -1568,14 +1591,16 @@ xdma_channel_irq(int irq, void* dev_id)
     return IRQ_NONE;
   }
 
+  base_address = get_config_bar_address(engine);
+
   irq_regs = (struct interrupt_regs*)(xdev->bar[xdev->config_bar_idx] +
                                       XDMA_OFS_INT_CTRL);
 
   /* Disable the interrupt for this engine */
   write_register(engine->interrupt_enable_mask_value,
-                 &engine->regs->interrupt_enable_mask_w1c,
-                 (unsigned long)(&engine->regs->interrupt_enable_mask_w1c) -
-                   (unsigned long)(&engine->regs));
+                 base_address,
+                 (size_t)&engine->regs->interrupt_enable_mask_w1c -
+                   (size_t)base_address);
   /* Dummy read to flush the above write */
   read_register(&irq_regs->channel_int_pending);
   /* Schedule the bottom half */
@@ -1968,9 +1993,9 @@ static void
 prog_irq_msix_user(struct xdma_dev* xdev, bool clear)
 {
   /* user */
+  void* base_address = xdev->bar[xdev->config_bar_idx];
   struct interrupt_regs* int_regs =
-    (struct interrupt_regs*)(xdev->bar[xdev->config_bar_idx] +
-                             XDMA_OFS_INT_CTRL);
+    (struct interrupt_regs*)(base_address + XDMA_OFS_INT_CTRL);
   u32 i = xdev->c2h_channel_max + xdev->h2c_channel_max;
   u32 max = i + xdev->user_max;
   int j;
@@ -1987,10 +2012,9 @@ prog_irq_msix_user(struct xdma_dev* xdev, bool clear)
         val |= (i & 0x1f) << shift;
 
     write_register(val,
-                   &int_regs->user_msi_vector[j],
-                   XDMA_OFS_INT_CTRL +
-                     ((unsigned long)&int_regs->user_msi_vector[j] -
-                      (unsigned long)int_regs));
+                   base_address,
+                   (size_t)&int_regs->user_msi_vector[j] -
+                     (size_t)base_address);
 
     dbg_init("vector %d, 0x%x.\n", j, val);
   }
@@ -1999,9 +2023,9 @@ prog_irq_msix_user(struct xdma_dev* xdev, bool clear)
 static void
 prog_irq_msix_channel(struct xdma_dev* xdev, bool clear)
 {
+  void* base_address = xdev->bar[xdev->config_bar_idx];
   struct interrupt_regs* int_regs =
-    (struct interrupt_regs*)(xdev->bar[xdev->config_bar_idx] +
-                             XDMA_OFS_INT_CTRL);
+    (struct interrupt_regs*)(base_address + XDMA_OFS_INT_CTRL);
   u32 max = xdev->c2h_channel_max + xdev->h2c_channel_max;
   u32 i;
   int j;
@@ -2019,10 +2043,9 @@ prog_irq_msix_channel(struct xdma_dev* xdev, bool clear)
         val |= (i & 0x1f) << shift;
 
     write_register(val,
-                   &int_regs->channel_msi_vector[j],
-                   XDMA_OFS_INT_CTRL +
-                     ((unsigned long)&int_regs->channel_msi_vector[j] -
-                      (unsigned long)int_regs));
+                   base_address,
+                   (size_t)&int_regs->channel_msi_vector[j] -
+                     (size_t)base_address);
     dbg_init("vector %d, 0x%x.\n", j, val);
   }
 }
@@ -2192,8 +2215,8 @@ irq_legacy_setup(struct xdma_dev* xdev, struct pci_dev* pdev)
 {
   u32 w;
   u8 val;
-  void* reg;
   int rv;
+  void* base_address = xdev->bar[xdev->config_bar_idx];
 
   pci_read_config_byte(pdev, PCI_INTERRUPT_PIN, &val);
   dbg_init("Legacy Interrupt register value = %d\n", val);
@@ -2202,14 +2225,14 @@ irq_legacy_setup(struct xdma_dev* xdev, struct pci_dev* pdev)
     w = (val << 24) | (val << 16) | (val << 8) | val;
     /* Program IRQ Block Channel vactor and IRQ Block User vector
      * with Legacy interrupt value */
-    reg = xdev->bar[xdev->config_bar_idx] + 0x2080; // IRQ user
-    write_register(w, reg, 0x2080);
-    write_register(w, reg + 0x4, 0x2084);
-    write_register(w, reg + 0x8, 0x2088);
-    write_register(w, reg + 0xC, 0x208C);
-    reg = xdev->bar[xdev->config_bar_idx] + 0x20A0; // IRQ Block
-    write_register(w, reg, 0x20A0);
-    write_register(w, reg + 0x4, 0x20A4);
+    // IRQ user
+    write_register(w, base_address, 0x2080);
+    write_register(w, base_address, 0x2084);
+    write_register(w, base_address, 0x2088);
+    write_register(w, base_address, 0x208C);
+    // IRQ Block
+    write_register(w, base_address, 0x20A0);
+    write_register(w, base_address, 0x20A4);
   }
 
   xdev->irq_line = (int)pdev->irq;
@@ -2694,23 +2717,28 @@ engine_free_resource(struct xdma_engine* engine)
 static void
 engine_destroy(struct xdma_dev* xdev, struct xdma_engine* engine)
 {
+  void* base_address;
   BUG_ON(!xdev);
   BUG_ON(!engine);
 
   dbg_sg("Shutting down engine %s%d", engine->name, engine->channel);
 
+  base_address = get_config_bar_address(engine);
+
   /* Disable interrupts to stop processing new events during shutdown */
   write_register(0x0,
-                 &engine->regs->interrupt_enable_mask,
-                 (unsigned long)(&engine->regs->interrupt_enable_mask) -
-                   (unsigned long)(&engine->regs));
+                 base_address,
+                 (size_t)&engine->regs->interrupt_enable_mask -
+                   (size_t)base_address);
 
   if (enable_credit_mp && engine->streaming && engine->dir == DMA_FROM_DEVICE) {
     u32 reg_value = (0x1 << engine->channel) << 16;
     struct sgdma_common_regs* reg =
       (struct sgdma_common_regs*)(xdev->bar[xdev->config_bar_idx] +
                                   (0x6 * TARGET_SPACING));
-    write_register(reg_value, &reg->credit_mode_enable_w1c, 0);
+    write_register(reg_value,
+                   base_address,
+                   (size_t)&reg->credit_mode_enable_w1c - (size_t)base_address);
   }
 
   /* Release memory use for descriptor writebacks */
@@ -2769,10 +2797,13 @@ engine_writeback_setup(struct xdma_engine* engine)
   u32 w;
   struct xdma_dev* xdev;
   struct xdma_poll_wb* writeback;
+  void* base_address;
 
   BUG_ON(!engine);
   xdev = engine->xdev;
   BUG_ON(!xdev);
+
+  base_address = get_config_bar_address(engine);
 
   /*
    * RTO - doing the allocation per engine is wasteful since a full page
@@ -2787,14 +2818,12 @@ engine_writeback_setup(struct xdma_engine* engine)
            engine);
   w = cpu_to_le32(PCI_DMA_L(engine->poll_mode_bus));
   write_register(w,
-                 &engine->regs->poll_mode_wb_lo,
-                 (unsigned long)(&engine->regs->poll_mode_wb_lo) -
-                   (unsigned long)(&engine->regs));
+                 base_address,
+                 (size_t)&engine->regs->poll_mode_wb_lo - (size_t)base_address);
   w = cpu_to_le32(PCI_DMA_H(engine->poll_mode_bus));
   write_register(w,
-                 &engine->regs->poll_mode_wb_hi,
-                 (unsigned long)(&engine->regs->poll_mode_wb_hi) -
-                   (unsigned long)(&engine->regs));
+                 base_address,
+                 (size_t)&engine->regs->poll_mode_wb_hi - (size_t)base_address);
 
   return 0;
 }
@@ -2815,11 +2844,11 @@ engine_init_regs(struct xdma_engine* engine)
 {
   u32 reg_value;
   int rv = 0;
+  void* base_address = get_config_bar_address(engine);
 
   write_register(XDMA_CTRL_NON_INCR_ADDR,
-                 &engine->regs->control_w1c,
-                 (unsigned long)(&engine->regs->control_w1c) -
-                   (unsigned long)(&engine->regs));
+                 base_address,
+                 (size_t)&engine->regs->control_w1c - (size_t)base_address);
 
   engine_alignments(engine);
 
@@ -2848,9 +2877,9 @@ engine_init_regs(struct xdma_engine* engine)
 
   /* Apply engine configurations */
   write_register(reg_value,
-                 &engine->regs->interrupt_enable_mask,
-                 (unsigned long)(&engine->regs->interrupt_enable_mask) -
-                   (unsigned long)(&engine->regs));
+                 base_address,
+                 (size_t)&engine->regs->interrupt_enable_mask -
+                   (size_t)base_address);
 
   engine->interrupt_enable_mask_value = reg_value;
 
@@ -2863,7 +2892,9 @@ engine_init_regs(struct xdma_engine* engine)
       (struct sgdma_common_regs*)(xdev->bar[xdev->config_bar_idx] +
                                   (0x6 * TARGET_SPACING));
 
-    write_register(reg_value, &reg->credit_mode_enable_w1s, 0);
+    write_register(reg_value,
+                   base_address,
+                   (size_t)&reg->credit_mode_enable_w1s - (size_t)base_address);
   }
 
   return 0;
@@ -3346,7 +3377,7 @@ xdma_xfer_submit(void* dev_hndl,
     }
 
     /*
-     * When polling, determine how many descriptors have been queued		 * on the
+     * When polling, determine how many descriptors have been queued * on the
      * engine to determine the writeback value expected
      */
     if (poll_mode) {
@@ -4374,12 +4405,15 @@ complete_cyclic(struct xdma_engine* engine, char __user* buf, size_t count)
   int rc = 0;
   int num_credit = 0;
   unsigned long flags;
+  void* base_address;
 
   BUG_ON(!engine);
   result = engine->cyclic_result;
   BUG_ON(!result);
 
   spin_lock_irqsave(&engine->lock, flags);
+
+  base_address = get_config_bar_address(engine);
 
   /* where the host currently is in the ring buffer */
   head = engine->rx_head;
@@ -4451,7 +4485,9 @@ complete_cyclic(struct xdma_engine* engine, char __user* buf, size_t count)
   engine->rx_overrun = 0;
   /* if copy is successful, release credits */
   if (rc > 0)
-    write_register(num_credit, &engine->sgdma_regs->credits, 0);
+    write_register(num_credit,
+                   base_address,
+                   (size_t)&engine->sgdma_regs->credits - (size_t)base_address);
 
   return rc;
 }
@@ -4571,6 +4607,7 @@ xdma_cyclic_transfer_setup(struct xdma_engine* engine)
   unsigned long flags;
   int i;
   int rc;
+  void* base_address;
 
   BUG_ON(!engine);
   xdev = engine->xdev;
@@ -4582,6 +4619,8 @@ xdma_cyclic_transfer_setup(struct xdma_engine* engine)
   }
 
   spin_lock_irqsave(&engine->lock, flags);
+
+  base_address = get_config_bar_address(engine);
 
   engine->rx_tail = 0;
   engine->rx_head = 0;
@@ -4636,8 +4675,9 @@ xdma_cyclic_transfer_setup(struct xdma_engine* engine)
 #endif
 
   if (enable_credit_mp) {
-    // write_register(RX_BUF_PAGES,&engine->sgdma_regs->credits);
-    write_register(128, &engine->sgdma_regs->credits, 0);
+    write_register(128,
+                   base_address,
+                   (size_t)&engine->sgdma_regs->credits - (size_t)base_address);
   }
 
   spin_unlock_irqrestore(&engine->lock, flags);
@@ -4781,6 +4821,7 @@ engine_addrmode_set(struct xdma_engine* engine, unsigned long arg)
   int rv;
   unsigned long dst;
   u32 w = XDMA_CTRL_NON_INCR_ADDR;
+  void* base_address = get_config_bar_address(engine);
 
   dbg_perf("IOCTL_XDMA_ADDRMODE_SET\n");
   rv = get_user(dst, (int __user*)arg);
@@ -4789,14 +4830,12 @@ engine_addrmode_set(struct xdma_engine* engine, unsigned long arg)
     engine->non_incr_addr = !!dst;
     if (engine->non_incr_addr)
       write_register(w,
-                     &engine->regs->control_w1s,
-                     (unsigned long)(&engine->regs->control_w1s) -
-                       (unsigned long)(&engine->regs));
+                     base_address,
+                     (size_t)&engine->regs->control_w1s - (size_t)base_address);
     else
       write_register(w,
-                     &engine->regs->control_w1c,
-                     (unsigned long)(&engine->regs->control_w1c) -
-                       (unsigned long)(&engine->regs));
+                     base_address,
+                     (size_t)&engine->regs->control_w1c - (size_t)base_address);
   }
   engine_alignments(engine);
 
