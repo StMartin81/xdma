@@ -377,11 +377,7 @@ ioctl_do_perf_start(struct xdma_engine* engine, unsigned long arg)
   enable_perf(engine);
   dbg_perf("transfer_size = %d\n", engine->xdma_perf->transfer_size);
   /* initialize wait queue */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
   init_swait_queue_head(&engine->xdma_perf_wq);
-#else
-  init_waitqueue_head(&engine->xdma_perf_wq);
-#endif
   xdma_performance_submit(xdev, engine);
 
   return 0;

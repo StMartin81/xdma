@@ -763,13 +763,7 @@ engine_service_shutdown(struct xdma_engine* engine)
   engine->running = 0;
 
   /* awake task on engine's shutdown wait queue */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
   swake_up_one(&engine->shutdown_wq);
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
-  swake_up(&engine->shutdown_wq);
-#else
-  wake_up_interruptible(&engine->shutdown_wq);
-#endif
 }
 
 struct xdma_transfer*
@@ -785,13 +779,7 @@ engine_transfer_completion(struct xdma_engine* engine,
 
   /* synchronous I/O? */
   /* awake task on transfer's wait queue */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
   swake_up_one(&transfer->wq);
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
-  swake_up(&transfer->wq);
-#else
-  wake_up_interruptible(&transfer->wq);
-#endif
 
   return transfer;
 }
@@ -969,13 +957,7 @@ engine_service_perf(struct xdma_engine* engine, u32 desc_completed)
        * wake any XDMA_PERF_IOCTL_STOP waiting for
        * the performance run to finish
        */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
       swake_up_one(&engine->xdma_perf_wq);
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
-      swake_up(&engine->xdma_perf_wq);
-#else
-      wake_up_interruptible(&engine->xdma_perf_wq);
-#endif
       dbg_perf("transfer->xdma_perf stopped\n");
     }
   }
@@ -1118,25 +1100,13 @@ engine_service_cyclic_interrupt(struct xdma_engine* engine)
     if (eop_count > 0) {
       // engine->eop_found = 1;
     }
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
     swake_up_one(&xfer->wq);
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
-    swake_up(&xfer->wq);
-#else
-    wake_up_interruptible(&xfer->wq);
-#endif
   } else {
     if (eop_count > 0) {
       /* awake task on transfer's wait queue */
       dbg_tfr("wake_up_interruptible() due to %d EOP's\n", eop_count);
       engine->eop_found = 1;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
       swake_up_one(&xfer->wq);
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
-      swake_up(&xfer->wq);
-#else
-      wake_up_interruptible(&xfer->wq);
-#endif
     }
   }
 
@@ -1191,13 +1161,7 @@ engine_service_resume(struct xdma_engine* engine)
     } else if (engine->shutdown & ENGINE_SHUTDOWN_REQUEST) {
       engine->shutdown |= ENGINE_SHUTDOWN_IDLE;
       /* awake task on engine's shutdown wait queue */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
       swake_up_one(&engine->shutdown_wq);
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
-      swake_up(&engine->shutdown_wq);
-#else
-      wake_up_interruptible(&engine->shutdown_wq);
-#endif
     } else {
       dbg_tfr("no pending transfers, %s engine stays idle.\n", engine->name);
     }
@@ -1924,18 +1888,8 @@ enable_msi_msix(struct xdma_dev* xdev, struct pci_dev* pdev)
     int req_nvec =
       xdev->c2h_channel_max + xdev->h2c_channel_max + xdev->user_max;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
     dbg_init("Enabling MSI-X\n");
     rv = pci_alloc_irq_vectors(pdev, req_nvec, req_nvec, PCI_IRQ_MSIX);
-#else
-    int i;
-
-    dbg_init("Enabling MSI-X\n");
-    for (i = 0; i < req_nvec; i++)
-      xdev->entry[i].entry = i;
-
-    rv = pci_enable_msix(pdev, xdev->entry, req_nvec);
-#endif
     if (rv < 0)
       dbg_init("Couldn't enable MSI-X mode: %d\n", rv);
 
@@ -2094,11 +2048,7 @@ irq_msix_channel_setup(struct xdma_dev* xdev)
 
   engine = xdev->engine_h2c;
   for (i = 0; i < xdev->h2c_channel_max; i++, engine++) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
     vector = pci_irq_vector(xdev->pdev, i);
-#else
-    vector = xdev->entry[i].vector;
-#endif
     rv = request_irq(vector, xdma_channel_irq, 0, xdev->mod_name, engine);
     if (rv) {
       pr_info(
@@ -2111,11 +2061,7 @@ irq_msix_channel_setup(struct xdma_dev* xdev)
 
   engine = xdev->engine_c2h;
   for (i = 0; i < xdev->c2h_channel_max; i++, j++, engine++) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
     vector = pci_irq_vector(xdev->pdev, j);
-#else
-    vector = xdev->entry[j].vector;
-#endif
     rv = request_irq(vector, xdma_channel_irq, 0, xdev->mod_name, engine);
     if (rv) {
       pr_info(
@@ -2143,11 +2089,7 @@ irq_msix_user_teardown(struct xdma_dev* xdev)
   prog_irq_msix_user(xdev, 1);
 
   for (i = 0; i < xdev->user_max; i++, j++) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
     u32 vector = pci_irq_vector(xdev->pdev, j);
-#else
-    u32 vector = xdev->entry[j].vector;
-#endif
     dbg_init("user %d, releasing IRQ#%d\n", i, vector);
     free_irq(vector, &xdev->user_irq[i]);
   }
@@ -2162,11 +2104,7 @@ irq_msix_user_setup(struct xdma_dev* xdev)
 
   /* vectors set in probe_scan_for_msi() */
   for (i = 0; i < xdev->user_max; i++, j++) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
     u32 vector = pci_irq_vector(xdev->pdev, j);
-#else
-    u32 vector = xdev->entry[j].vector;
-#endif
     rv =
       request_irq(vector, xdma_user_irq, 0, xdev->mod_name, &xdev->user_irq[i]);
     if (rv) {
@@ -2183,11 +2121,7 @@ irq_msix_user_setup(struct xdma_dev* xdev)
   /* If any errors occur, free IRQs that were successfully requested */
   if (rv) {
     for (i--, j--; i >= 0; i--, j--) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
       u32 vector = pci_irq_vector(xdev->pdev, j);
-#else
-      u32 vector = xdev->entry[j].vector;
-#endif
       free_irq(vector, &xdev->user_irq[i]);
     }
   }
@@ -3083,11 +3017,7 @@ transfer_init(struct xdma_engine* engine, struct xdma_request_cb* req)
   memset(xfer, 0, sizeof(*xfer));
 
   /* initialize wait queue */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
   init_swait_queue_head(&xfer->wq);
-#else
-  init_waitqueue_head(&xfer->wq);
-#endif
 
   /* remember direction of transfer */
   xfer->dir = engine->dir;
@@ -3390,16 +3320,8 @@ xdma_xfer_submit(void* dev_hndl,
       engine_service_poll(engine, desc_count);
 
     } else {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
       swait_event_interruptible_timeout_exclusive(
         xfer->wq,
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
-      swait_event_interruptible_timeout(
-        xfer->wq,
-#else
-      wait_event_interruptible_timeout(
-        xfer->wq,
-#endif
         (xfer->state != TRANSFER_STATE_SUBMITTED),
         msecs_to_jiffies(timeout_ms));
     }
@@ -3547,11 +3469,7 @@ xdma_performance_submit(struct xdma_dev* xdev, struct xdma_engine* engine)
   transfer->cyclic = 1;
 
   /* initialize wait queue */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
   init_swait_queue_head(&transfer->wq);
-#else
-  init_waitqueue_head(&transfer->wq);
-#endif
 
   // printk("=== Descriptor print for PERF \n");
   // transfer_dump(transfer);
@@ -3604,13 +3522,8 @@ alloc_dev_instance(struct pci_dev* pdev)
     spin_lock_init(&engine->lock);
     spin_lock_init(&engine->desc_lock);
     INIT_LIST_HEAD(&engine->transfer_list);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
     init_swait_queue_head(&engine->shutdown_wq);
     init_swait_queue_head(&engine->xdma_perf_wq);
-#else
-    init_waitqueue_head(&engine->shutdown_wq);
-    init_waitqueue_head(&engine->xdma_perf_wq);
-#endif
   }
 
   engine = xdev->engine_c2h;
@@ -3618,13 +3531,8 @@ alloc_dev_instance(struct pci_dev* pdev)
     spin_lock_init(&engine->lock);
     spin_lock_init(&engine->desc_lock);
     INIT_LIST_HEAD(&engine->transfer_list);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
     init_swait_queue_head(&engine->shutdown_wq);
     init_swait_queue_head(&engine->xdma_perf_wq);
-#else
-    init_waitqueue_head(&engine->shutdown_wq);
-    init_waitqueue_head(&engine->xdma_perf_wq);
-#endif
   }
 
   return xdev;
@@ -3819,27 +3727,11 @@ probe_engines(struct xdma_dev* xdev)
   return 0;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)
 static void
 pci_enable_capability(struct pci_dev* pdev, int cap)
 {
   pcie_capability_set_word(pdev, PCI_EXP_DEVCTL, cap);
 }
-#else
-static void
-pci_enable_capability(struct pci_dev* pdev, int cap)
-{
-  u16 v;
-  int pos;
-
-  pos = pci_pcie_cap(pdev);
-  if (pos > 0) {
-    pci_read_config_word(pdev, pos + PCI_EXP_DEVCTL, &v);
-    v |= cap;
-    pci_write_config_word(pdev, pos + PCI_EXP_DEVCTL, v);
-  }
-}
-#endif
 
 void*
 xdma_device_open(const char* mname,
@@ -4262,16 +4154,8 @@ transfer_monitor_cyclic(struct xdma_engine* engine,
               engine->name,
               engine->rx_head,
               engine->rx_tail);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
       rc = swait_event_interruptible_timeout_exclusive(
         transfer->wq,
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
-      rc = swait_event_interruptible_timeout(
-        transfer->wq,
-#else
-      rc = wait_event_interruptible_timeout(
-        transfer->wq,
-#endif
         (engine->rx_head != engine->rx_tail || engine->rx_overrun),
         msecs_to_jiffies(timeout_ms));
       dbg_tfr("%s: wait returns %d, rx %d/%d, overrun %d.\n",
@@ -4281,16 +4165,8 @@ transfer_monitor_cyclic(struct xdma_engine* engine,
               engine->rx_tail,
               engine->rx_overrun);
     } else {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
       rc = swait_event_interruptible_timeout_exclusive(
-        transfer->wq,
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
-      rc = swait_event_interruptible_timeout(transfer->wq,
-#else
-      rc = wait_event_interruptible_timeout(transfer->wq,
-#endif
-        engine->eop_found,
-        msecs_to_jiffies(timeout_ms));
+        transfer->wq, engine->eop_found, msecs_to_jiffies(timeout_ms));
       dbg_tfr("%s: wait returns %d, eop_found %d.\n",
               engine->name,
               rc,
@@ -4741,15 +4617,8 @@ cyclic_shutdown_interrupt(struct xdma_engine* engine)
 
   BUG_ON(!engine);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0)
-  rc = swait_event_interruptible_timeout_exclusive(engine->shutdown_wq,
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
-  rc = swait_event_interruptible_timeout(engine->shutdown_wq,
-#else
-  rc = wait_event_interruptible_timeout(engine->shutdown_wq,
-#endif
-                                                   !engine->running,
-                                                   msecs_to_jiffies(10000));
+  rc = swait_event_interruptible_timeout_exclusive(
+    engine->shutdown_wq, !engine->running, msecs_to_jiffies(10000));
 
 #if 0
 	if (rc) {

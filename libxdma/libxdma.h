@@ -27,13 +27,11 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/swait.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
 #include <linux/version.h>
 #include <linux/workqueue.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
-#include <linux/swait.h>
-#endif
 /*
  *  if the config bar is fixed, the driver does not neeed to search through
  *  all of the bars
@@ -408,11 +406,7 @@ struct xdma_transfer
   int desc_adjacent;           /* adjacent descriptors at desc_bus */
   int desc_num;                /* number of descriptors in transfer */
   enum dma_data_direction dir;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
   struct swait_queue_head wq;
-#else
-  wait_queue_head_t wq;           /* wait queue for transfer completion */
-#endif
 
   enum transfer_state state; /* state of the transfer */
   unsigned int flags;
@@ -489,11 +483,7 @@ struct xdma_engine
   dma_addr_t poll_mode_bus; /* bus addr for descriptor writeback */
 
   /* Members associated with interrupt mode support */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
   struct swait_queue_head shutdown_wq;
-#else
-  wait_queue_head_t shutdown_wq;  /* wait queue for shutdown sync */
-#endif
   spinlock_t lock;         /* protects concurrent access */
   int prev_cpu;            /* remember CPU# of (last) locker */
   int msix_irq_line;       /* MSI-X vector for this engine */
@@ -506,11 +496,7 @@ struct xdma_engine
 
   /* for performance test support */
   struct xdma_performance_ioctl* xdma_perf; /* perf test control */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
   struct swait_queue_head xdma_perf_wq;
-#else
-  wait_queue_head_t xdma_perf_wq; /* Perf test sync */
-#endif
 };
 
 struct xdma_user_irq
@@ -558,9 +544,6 @@ struct xdma_dev
   int irq_line;     /* flag if irq allocated successfully */
   int msi_enabled;  /* flag if msi was enabled for the device */
   int msix_enabled; /* flag if msi-x was enabled for the device */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 12, 0)
-  struct msix_entry entry[32]; /* msi-x vector/entry table */
-#endif
   struct xdma_user_irq user_irq[16]; /* user IRQ management */
   unsigned int mask_irq_user;
 

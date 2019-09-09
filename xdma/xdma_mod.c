@@ -384,7 +384,6 @@ xdma_error_resume(struct pci_dev* pdev)
   pci_cleanup_aer_uncorrect_error_status(pdev);
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)
 static void
 xdma_reset_prepare(struct pci_dev* pdev)
 {
@@ -403,31 +402,12 @@ xdma_reset_done(struct pci_dev* pdev)
   xdma_device_online(pdev, xpdev->xdev);
 }
 
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
-static void
-xdma_reset_notify(struct pci_dev* pdev, bool prepare)
-{
-  struct xdma_pci_dev* xpdev = dev_get_drvdata(&pdev->dev);
-
-  pr_info("dev 0x%p,0x%p, prepare %d.\n", pdev, xpdev, prepare);
-
-  if (prepare)
-    xdma_device_offline(pdev, xpdev->xdev);
-  else
-    xdma_device_online(pdev, xpdev->xdev);
-}
-#endif
-
 static const struct pci_error_handlers xdma_err_handler = {
   .error_detected = xdma_error_detected,
   .slot_reset = xdma_slot_reset,
   .resume = xdma_error_resume,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)
   .reset_prepare = xdma_reset_prepare,
   .reset_done = xdma_reset_done,
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)
-  .reset_notify = xdma_reset_notify,
-#endif
 };
 
 static struct pci_driver pci_driver = {
