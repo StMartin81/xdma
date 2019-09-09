@@ -89,8 +89,6 @@ struct xdma_pci_dev {
 	struct xdma_cdev bypass_h2c_cdev[XDMA_CHANNEL_NUM_MAX];
 	struct xdma_cdev bypass_cdev_base;
 
-	struct xdma_cdev xvc_cdev;
-
 	void *data;
 };
 

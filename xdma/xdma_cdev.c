@@ -26,7 +26,6 @@ struct class *g_xdma_class;
 enum cdev_type {
 	CHAR_USER,
 	CHAR_CTRL,
-	CHAR_XVC,
 	CHAR_EVENTS,
 	CHAR_XDMA_H2C,
 	CHAR_XDMA_C2H,
@@ -38,7 +37,6 @@ enum cdev_type {
 static const char * const devnode_names[] = {
 	XDMA_NODE_NAME "%d_user",
 	XDMA_NODE_NAME "%d_control",
-	XDMA_NODE_NAME "%d_xvc",
 	XDMA_NODE_NAME "%d_events_%d",
 	XDMA_NODE_NAME "%d_h2c_%d",
 	XDMA_NODE_NAME "%d_c2h_%d",
@@ -50,7 +48,6 @@ static const char * const devnode_names[] = {
 enum xpdev_flags_bits {
         XDF_CDEV_USER,
         XDF_CDEV_CTRL,
-        XDF_CDEV_XVC,
         XDF_CDEV_EVENT,
         XDF_CDEV_SG,
         XDF_CDEV_BYPASS,
@@ -105,10 +102,6 @@ static int config_kobject(struct xdma_cdev *xcdev, enum cdev_type type)
 	case CHAR_BYPASS:
 	case CHAR_USER:
 	case CHAR_CTRL:
-	case CHAR_XVC:
-		rv = kobject_set_name(&xcdev->cdev.kobj, devnode_names[type],
-			xdev->idx);
-		break;
 	case CHAR_EVENTS:
 		rv = kobject_set_name(&xcdev->cdev.kobj, devnode_names[type],
 			xdev->idx, xcdev->bar);
@@ -280,11 +273,6 @@ static int create_xcdev(struct xdma_pci_dev *xpdev, struct xdma_cdev *xcdev,
 		minor = type;
 		cdev_ctrl_init(xcdev);
 		break;
-	case CHAR_XVC:
-		/* minor number is type index for non-SGDMA interfaces */
-		minor = type;
-		cdev_xvc_init(xcdev);
-		break;
 	case CHAR_XDMA_H2C:
 		minor = 32 + engine->channel;
 		cdev_sgdma_init(xcdev);
@@ -371,10 +359,6 @@ void xpdev_destroy_interfaces(struct xdma_pci_dev *xpdev)
 	/* remove user character device */
 	if (xpdev_flag_test(xpdev, XDF_CDEV_USER)) {
 		destroy_xcdev(&xpdev->user_cdev);
-	}
-
-	if (xpdev_flag_test(xpdev, XDF_CDEV_XVC)) {
-		destroy_xcdev(&xpdev->xvc_cdev);
 	}
 
 	if (xpdev_flag_test(xpdev, XDF_CDEV_BYPASS)) {
@@ -500,14 +484,6 @@ int xpdev_create_interfaces(struct xdma_pci_dev *xpdev)
 		}
 		xpdev_flag_set(xpdev, XDF_CDEV_USER);
 
-		/* xvc */
-		rv = create_xcdev(xpdev, &xpdev->xvc_cdev, xdev->user_bar_idx,
-				 NULL, CHAR_XVC);
-		if (rv < 0) {
-			pr_err("create xvc failed, %d.\n", rv);
-			goto fail;
-		}
-		xpdev_flag_set(xpdev, XDF_CDEV_XVC);
 	}
 
 #ifdef __XDMA_SYSFS__
