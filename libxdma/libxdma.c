@@ -1827,43 +1827,6 @@ fail:
  *	<h2c+c2h channel_max> vectors, followed by <user_max> vectors
  */
 
-/*
- * RTO - code to detect if MSI/MSI-X capability exists is derived
- * from linux/pci/msi.c - pci_msi_check_device
- */
-
-#ifndef arch_msi_check_device
-int
-arch_msi_check_device(struct pci_dev* dev, int nvec, int type)
-{
-  return 0;
-}
-#endif
-
-/* type = PCI_CAP_ID_MSI or PCI_CAP_ID_MSIX */
-static int
-msi_msix_capable(struct pci_dev* dev, int type)
-{
-  struct pci_bus* bus;
-  int ret;
-
-  if (!dev || dev->no_msi)
-    return 0;
-
-  for (bus = dev->bus; bus; bus = bus->parent)
-    if (bus->bus_flags & PCI_BUS_FLAGS_NO_MSI)
-      return 0;
-
-  ret = arch_msi_check_device(dev, 1, type);
-  if (ret)
-    return 0;
-
-  if (!pci_find_capability(dev, type))
-    return 0;
-
-  return 1;
-}
-
 static void
 disable_msi_msix(struct xdma_dev* xdev, struct pci_dev* pdev)
 {
@@ -1876,38 +1839,47 @@ disable_msi_msix(struct xdma_dev* xdev, struct pci_dev* pdev)
   }
 }
 
-static int
-enable_msi_msix(struct xdma_dev* xdev, struct pci_dev* pdev)
+static void
+try_enable_msi_msix(struct xdma_dev* xdev, struct pci_dev* pdev)
 {
-  int rv = 0;
+  int ret = 0;
+  int req_nvec;
 
   BUG_ON(!xdev);
   BUG_ON(!pdev);
 
-  if (!interrupt_mode && msi_msix_capable(pdev, PCI_CAP_ID_MSIX)) {
-    int req_nvec =
-      xdev->c2h_channel_max + xdev->h2c_channel_max + xdev->user_max;
-
-    dbg_init("Enabling MSI-X\n");
-    rv = pci_alloc_irq_vectors(pdev, req_nvec, req_nvec, PCI_IRQ_MSIX);
-    if (rv < 0)
-      dbg_init("Couldn't enable MSI-X mode: %d\n", rv);
-
-    xdev->msix_enabled = 1;
-
-  } else if (interrupt_mode == 1 && msi_msix_capable(pdev, PCI_CAP_ID_MSI)) {
-    /* enable message signalled interrupts */
-    dbg_init("pci_enable_msi()\n");
-    rv = pci_enable_msi(pdev);
-    if (rv < 0)
-      dbg_init("Couldn't enable MSI mode: %d\n", rv);
-    xdev->msi_enabled = 1;
-
-  } else {
-    dbg_init("MSI/MSI-X not detected - using legacy interrupts\n");
+  if (interrupt_mode) {
+    dbg_init("Not using MSI/MSI-X interrupts because legacy interrupts was "
+             "selected\n");
+    return;
   }
 
-  return rv;
+  /* Try to enable MSI-X interrupts */
+  req_nvec = xdev->c2h_channel_max + xdev->h2c_channel_max + xdev->user_max;
+
+  dbg_init("Trying to enable MSI-X interrupts\n");
+  ret = pci_alloc_irq_vectors(pdev, req_nvec, req_nvec, PCI_IRQ_MSIX);
+  if (ret == req_nvec) {
+    dbg_init("MSI-X interrupts enabled\n");
+    xdev->msix_enabled = 1;
+  }
+
+  if (!xdev->msix_enabled) {
+    dbg_init(
+      "Enabling MSI-X interrupts failed -> trying to enable MSI interrupts\n");
+
+    ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI);
+    if (ret == 1) {
+      dbg_init("MSI interrupts enabled\n");
+      xdev->msi_enabled = 1;
+    }
+  }
+
+  if (!xdev->msix_enabled && !xdev->msi_enabled)
+    dbg_init("Enabling MSI/MSI-X interrupts failed -> falling back to "
+             "legacy interrupts\n");
+
+  return;
 }
 
 static void
@@ -3813,9 +3785,7 @@ xdma_device_open(const char* mname,
   if (rv)
     goto err_engines;
 
-  rv = enable_msi_msix(xdev, pdev);
-  if (rv < 0)
-    goto err_enable_msix;
+  try_enable_msi_msix(xdev, pdev);
 
   rv = irq_setup(xdev, pdev);
   if (rv < 0)
@@ -3836,8 +3806,6 @@ xdma_device_open(const char* mname,
 
 err_interrupts:
   irq_teardown(xdev);
-err_enable_msix:
-  disable_msi_msix(xdev, pdev);
 err_engines:
   remove_engines(xdev);
 err_mask:
