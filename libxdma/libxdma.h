@@ -316,11 +316,6 @@ struct msix_vec_table_entry
   u32 msi_vec_data_hi;
 } __packed;
 
-struct msix_vec_table
-{
-  struct msix_vec_table_entry entry_list[32];
-} __packed;
-
 struct interrupt_regs
 {
   u32 identifier;
