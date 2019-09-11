@@ -30,6 +30,9 @@
 #include "cdev_sgdma.h"
 #include "libxdma.h"
 #include "libxdma_api.h"
+#ifdef __LIBXDMA_DEBUG__
+#include <linux/msi.h>
+#endif
 
 /* SECTION: Module licensing */
 
@@ -2162,6 +2165,40 @@ irq_teardown(struct xdma_dev* xdev)
   }
 }
 
+#ifdef __LIBXDMA_DEBUG__
+static void __iomem*
+pci_msix_desc_addr(struct msi_desc* desc)
+{
+  return desc->mask_base + desc->msi_attrib.entry_nr * PCI_MSIX_ENTRY_SIZE;
+}
+
+static void
+print_msix_table(struct pci_dev* dev)
+{
+  u32 data;
+  void __iomem* desc_addr;
+  struct msi_desc* entry;
+  struct msix_vec_table_entry* table_entry;
+
+  for_each_pci_msi_entry(entry, dev)
+  {
+    desc_addr = pci_msix_desc_addr(entry);
+    if (desc_addr) {
+      table_entry = (struct msix_vec_table_entry*)desc_addr;
+      dbg_init("MSI-X Vector Table for IRQ %u (0x%p)\n", entry->irq, desc_addr);
+      data = ioread32(&table_entry->msix_vec_addr_lo);
+      dbg_init("MSI-X lower address: 0x%x", data);
+      data = ioread32(&table_entry->msix_vec_addr_hi);
+      dbg_init("MSI-X higher address: 0x%x", data);
+      data = ioread32(&table_entry->msix_vec_data);
+      dbg_init("MSI-X message data: 0x%x", data);
+      data = ioread32(&table_entry->msix_vec_control);
+      dbg_init("MSI-X control: 0x%x", data);
+    }
+  }
+}
+#endif
+
 static int
 irq_setup(struct xdma_dev* xdev, struct pci_dev* pdev)
 {
@@ -2176,6 +2213,10 @@ irq_setup(struct xdma_dev* xdev, struct pci_dev* pdev)
       return rv;
     prog_irq_msix_channel(xdev, 0);
     prog_irq_msix_user(xdev, 0);
+
+#ifdef __LIBXDMA_DEBUG__
+    print_msix_table(pdev);
+#endif
 
     return 0;
   } else if (xdev->msi_enabled)

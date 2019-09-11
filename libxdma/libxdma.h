@@ -308,13 +308,15 @@ struct engine_sgdma_regs
   u32 credits;
 } __packed;
 
+#ifdef __LIBXDMA_DEBUG__
 struct msix_vec_table_entry
 {
-  u32 msi_vec_addr_lo;
-  u32 msi_vec_addr_hi;
-  u32 msi_vec_data_lo;
-  u32 msi_vec_data_hi;
+  u32 msix_vec_addr_lo;
+  u32 msix_vec_addr_hi;
+  u32 msix_vec_data;
+  u32 msix_vec_control;
 } __packed;
+#endif
 
 struct interrupt_regs
 {
