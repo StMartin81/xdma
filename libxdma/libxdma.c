@@ -1557,8 +1557,7 @@ xdma_channel_irq(int irq, void* dev_id)
 
   base_address = get_config_bar_address(engine);
 
-  irq_regs = (struct interrupt_regs*)(xdev->bar[xdev->config_bar_idx] +
-                                      XDMA_OFS_INT_CTRL);
+  irq_regs = (struct interrupt_regs*)(base_address + XDMA_OFS_INT_CTRL);
 
   /* Disable the interrupt for this engine */
   write_register(engine->interrupt_enable_mask_value,
