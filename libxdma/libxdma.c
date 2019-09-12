@@ -2125,6 +2125,8 @@ irq_legacy_setup(struct xdma_dev* xdev, struct pci_dev* pdev)
   u8 val;
   int rv;
   void* base_address = xdev->bar[xdev->config_bar_idx];
+  struct interrupt_regs* irq_regs =
+    (struct interrupt_regs*)(base_address + XDMA_OFS_INT_CTRL);
 
   pci_read_config_byte(pdev, PCI_INTERRUPT_PIN, &val);
   dbg_init("Legacy Interrupt register value = %d\n", val);
@@ -2134,13 +2136,31 @@ irq_legacy_setup(struct xdma_dev* xdev, struct pci_dev* pdev)
     /* Program IRQ Block Channel vactor and IRQ Block User vector
      * with Legacy interrupt value */
     // IRQ user
-    write_register(w, base_address, 0x2080);
-    write_register(w, base_address, 0x2084);
-    write_register(w, base_address, 0x2088);
-    write_register(w, base_address, 0x208C);
+    write_register(w,
+                   base_address,
+                   (size_t)&irq_regs->user_msi_vector[0] -
+                     (size_t)base_address);
+    write_register(w,
+                   base_address,
+                   (size_t)&irq_regs->user_msi_vector[1] -
+                     (size_t)base_address);
+    write_register(w,
+                   base_address,
+                   (size_t)&irq_regs->user_msi_vector[2] -
+                     (size_t)base_address);
+    write_register(w,
+                   base_address,
+                   (size_t)&irq_regs->user_msi_vector[3] -
+                     (size_t)base_address);
     // IRQ Block
-    write_register(w, base_address, 0x20A0);
-    write_register(w, base_address, 0x20A4);
+    write_register(w,
+                   base_address,
+                   (size_t)&irq_regs->channel_msi_vector[0] -
+                     (size_t)base_address);
+    write_register(w,
+                   base_address,
+                   (size_t)&irq_regs->channel_msi_vector[0] -
+                     (size_t)base_address);
   }
 
   xdev->irq_line = (int)pdev->irq;
