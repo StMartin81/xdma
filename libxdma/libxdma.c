@@ -1300,7 +1300,7 @@ engine_service_work(struct work_struct* work)
   if (engine->xdev->msix_enabled) {
     write_register(engine->interrupt_enable_mask_value,
                    base_address,
-                   (size_t)engine->regs->interrupt_enable_mask_w1s -
+                   (size_t)&engine->regs->interrupt_enable_mask_w1s -
                      (size_t)base_address);
   } else
     channel_interrupts_enable(engine->xdev, engine->irq_bitmask);
