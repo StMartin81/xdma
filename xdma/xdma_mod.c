@@ -251,7 +251,6 @@ probe_one(struct pci_dev* pdev, const struct pci_device_id* id)
   struct xdma_pci_dev* xpdev = NULL;
   struct xdma_dev* xdev;
   void* hndl;
-  u32 mask;
 
   xpdev = xpdev_alloc(pdev);
   if (!xpdev)
@@ -273,14 +272,6 @@ probe_one(struct pci_dev* pdev, const struct pci_device_id* id)
 
   if (!xpdev->h2c_channel_max && !xpdev->c2h_channel_max)
     pr_warn("NO engine found!\n");
-
-  if (xpdev->user_max) {
-    mask = (1 << xpdev->user_max) - 1;
-
-    rv = xdma_user_isr_enable(hndl, mask);
-    if (rv)
-      goto err_out;
-  }
 
   /* make sure no duplicate */
   xdev = xdev_find_by_pdev(pdev);
