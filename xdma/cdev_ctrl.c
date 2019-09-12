@@ -94,7 +94,6 @@ char_ctrl_write(struct file* file,
          reg,
          (long)count,
          (int)*pos);
-  // write_register(w, reg);
   iowrite32(w, reg);
   *pos += 4;
   return 4;
