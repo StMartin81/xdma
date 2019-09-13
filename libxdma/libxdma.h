@@ -336,6 +336,7 @@ struct interrupt_regs
   u32 reserved_2[12]; /* padding */
 
   u32 user_msi_vector[4];
+  u32 reserved_3[4]; /* padding */
   u32 channel_msi_vector[2];
 } __packed;
 
