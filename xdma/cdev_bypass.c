@@ -20,8 +20,6 @@
 #include "libxdma_api.h"
 #include "xdma_cdev.h"
 
-#define write_register(v, mem, off) iowrite32(v, mem)
-
 static int
 copy_desc_data(struct xdma_transfer* transfer,
                char __user* buf,
@@ -124,6 +122,7 @@ char_bypass_write(struct file* file,
   size_t buf_offset = 0;
   int rc = 0;
   int copy_err;
+  void* base_address;
 
   rc = xcdev_check(__func__, xcdev, 1);
   if (rc < 0)
@@ -151,13 +150,14 @@ char_bypass_write(struct file* file,
   spin_lock(&engine->lock);
 
   /* Write descriptor data to the bypass BAR */
-  bypass_addr = (u32*)xdev->bar[xdev->bypass_bar_idx];
+  base_address = xdev->bar[xdev->bypass_bar_idx];
+  bypass_addr = (u32*)base_address;
   bypass_addr += engine->bypass_offset;
   while (buf_offset < count) {
     copy_err = copy_from_user(&desc_data, &buf[buf_offset], sizeof(u32));
     if (!copy_err) {
       write_register(
-        desc_data, bypass_addr, bypass_addr - engine->bypass_offset);
+        desc_data, base_address, (size_t)bypass_addr - (size_t)base_address);
       buf_offset += sizeof(u32);
       rc = buf_offset;
     } else {

@@ -607,8 +607,14 @@ xdma_device_flag_clear(struct xdma_dev* xdev, unsigned int f)
   spin_unlock_irqrestore(&xdev->lock, flags);
 }
 
-void
-write_register(u32 value, void* iomem);
+#ifdef __LIBXDMA_DEBUG__
+inline void
+__write_register(const char* fn, u32 value, void* iomem, size_t off);
+#define write_register(v, mem, off)                                            \
+  __write_register(__func__, (v), (mem), (off))
+#else
+#define write_register(v, mem, off) iowrite32(v, (mem + off))
+#endif
 u32
 read_register(void* iomem);
 
