@@ -1936,7 +1936,7 @@ prog_irq_msix_user(struct xdma_dev* xdev, bool clear)
     if (clear)
       i += 4;
     else
-      for (k = 0; k < 4 && i < max; i++, k++, shift += 5)
+      for (k = 0; k < 4 && i < max; i++, k++, shift += 8)
         val |= (i & 0x1f) << shift;
 
     write_register(val,
@@ -1967,7 +1967,7 @@ prog_irq_msix_channel(struct xdma_dev* xdev, bool clear)
     if (clear)
       i += 4;
     else
-      for (k = 0; k < 4 && i < max; i++, k++, shift += 5)
+      for (k = 0; k < 4 && i < max; i++, k++, shift += 8)
         val |= (i & 0x1f) << shift;
 
     write_register(val,
