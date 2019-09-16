@@ -40,6 +40,8 @@ typedef struct
   u64 msix_trigger;
 } xdma_statistics;
 
+struct xdma_dev;
+
 /*
  * This struct should be constantly updated by XMDA using u64_stats_* APIs
  * The front end will read the structure without locking (That's why updating
@@ -111,7 +113,7 @@ xdma_device_restart(struct pci_dev* pdev, void* dev_handle);
  * TODO: exact error code will be defined later
  */
 int
-xdma_user_isr_register(void* dev_hndl,
+xdma_user_isr_register(struct xdma_dev* dev_hndl,
                        unsigned int mask,
                        irq_handler_t handler,
                        void* dev);
@@ -124,9 +126,9 @@ xdma_user_isr_register(void* dev_hndl,
  * TODO: exact error code will be defined later
  */
 int
-xdma_user_isr_enable(void* dev_hndl, unsigned int mask);
+xdma_user_isr_enable(struct xdma_dev* dev_hndl, unsigned int mask);
 int
-xdma_user_isr_disable(void* dev_hndl, unsigned int mask);
+xdma_user_isr_disable(struct xdma_dev* dev_hndl, unsigned int mask);
 
 /*
  * xdma_xfer_submit - submit data for dma operation (for both read and write)
@@ -143,7 +145,7 @@ xdma_user_isr_disable(void* dev_hndl, unsigned int mask);
  * TODO: exact error code will be defined later
  */
 ssize_t
-xdma_xfer_submit(void* dev_hndl,
+xdma_xfer_submit(struct xdma_dev* dev_hndl,
                  int channel,
                  bool write,
                  u64 ep_addr,

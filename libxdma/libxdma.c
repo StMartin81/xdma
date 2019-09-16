@@ -3208,7 +3208,7 @@ xdma_init_request(struct sg_table* sgt, u64 ep_addr)
 }
 
 ssize_t
-xdma_xfer_submit(void* dev_hndl,
+xdma_xfer_submit(struct xdma_dev* xdev,
                  int channel,
                  bool write,
                  u64 ep_addr,
@@ -3216,7 +3216,6 @@ xdma_xfer_submit(void* dev_hndl,
                  bool dma_mapped,
                  int timeout_ms)
 {
-  struct xdma_dev* xdev = (struct xdma_dev*)dev_hndl;
   struct xdma_engine* engine;
   int rv = 0;
   ssize_t done = 0;
@@ -3225,10 +3224,10 @@ xdma_xfer_submit(void* dev_hndl,
   enum dma_data_direction dir = write ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
   struct xdma_request_cb* req = NULL;
 
-  if (!dev_hndl)
+  if (!xdev)
     return -EINVAL;
 
-  if (debug_check_dev_hndl(__func__, xdev->pdev, dev_hndl) < 0)
+  if (debug_check_dev_hndl(__func__, xdev->pdev, xdev) < 0)
     return -EINVAL;
 
   if (write == 1) {
@@ -4048,18 +4047,17 @@ xdma_device_restart(struct pci_dev* pdev, void* dev_hndl)
 EXPORT_SYMBOL_GPL(xdma_device_restart);
 
 int
-xdma_user_isr_register(void* dev_hndl,
+xdma_user_isr_register(struct xdma_dev* xdev,
                        unsigned int mask,
                        irq_handler_t handler,
                        void* dev)
 {
-  struct xdma_dev* xdev = (struct xdma_dev*)dev_hndl;
   int i;
 
-  if (!dev_hndl)
+  if (!xdev)
     return -EINVAL;
 
-  if (debug_check_dev_hndl(__func__, xdev->pdev, dev_hndl) < 0)
+  if (debug_check_dev_hndl(__func__, xdev->pdev, xdev) < 0)
     return -EINVAL;
 
   for (i = 0; i < xdev->user_max && mask; i++) {
@@ -4078,14 +4076,12 @@ xdma_user_isr_register(void* dev_hndl,
 EXPORT_SYMBOL_GPL(xdma_user_isr_register);
 
 int
-xdma_user_isr_enable(void* dev_hndl, unsigned int mask)
+xdma_user_isr_enable(struct xdma_dev* xdev, unsigned int mask)
 {
-  struct xdma_dev* xdev = (struct xdma_dev*)dev_hndl;
-
-  if (!dev_hndl)
+  if (!xdev)
     return -EINVAL;
 
-  if (debug_check_dev_hndl(__func__, xdev->pdev, dev_hndl) < 0)
+  if (debug_check_dev_hndl(__func__, xdev->pdev, xdev) < 0)
     return -EINVAL;
 
   xdev->mask_irq_user |= mask;
@@ -4098,14 +4094,12 @@ xdma_user_isr_enable(void* dev_hndl, unsigned int mask)
 EXPORT_SYMBOL_GPL(xdma_user_isr_enable);
 
 int
-xdma_user_isr_disable(void* dev_hndl, unsigned int mask)
+xdma_user_isr_disable(struct xdma_dev* xdev, unsigned int mask)
 {
-  struct xdma_dev* xdev = (struct xdma_dev*)dev_hndl;
-
-  if (!dev_hndl)
+  if (!xdev)
     return -EINVAL;
 
-  if (debug_check_dev_hndl(__func__, xdev->pdev, dev_hndl) < 0)
+  if (debug_check_dev_hndl(__func__, xdev->pdev, xdev) < 0)
     return -EINVAL;
 
   xdev->mask_irq_user &= ~mask;
