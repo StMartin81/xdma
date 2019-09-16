@@ -764,7 +764,7 @@ engine_service_shutdown(struct xdma_engine* engine)
   engine->running = 0;
 
   /* awake task on engine's shutdown wait queue */
-  swake_up_one(&engine->shutdown_wq);
+  complete(&engine->shutdown_completion);
 }
 
 struct xdma_transfer*
@@ -780,7 +780,7 @@ engine_transfer_completion(struct xdma_engine* engine,
 
   /* synchronous I/O? */
   /* awake task on transfer's wait queue */
-  swake_up_one(&transfer->wq);
+  complete(&transfer->completion);
 
   return transfer;
 }
@@ -1101,13 +1101,13 @@ engine_service_cyclic_interrupt(struct xdma_engine* engine)
     if (eop_count > 0) {
       // engine->eop_found = 1;
     }
-    swake_up_one(&xfer->wq);
+    complete(&xfer->completion);
   } else {
     if (eop_count > 0) {
       /* awake task on transfer's wait queue */
       dbg_tfr("wake_up_interruptible() due to %d EOP's\n", eop_count);
       engine->eop_found = 1;
-      swake_up_one(&xfer->wq);
+      complete(&xfer->completion);
     }
   }
 
@@ -1162,7 +1162,7 @@ engine_service_resume(struct xdma_engine* engine)
     } else if (engine->shutdown & ENGINE_SHUTDOWN_REQUEST) {
       engine->shutdown |= ENGINE_SHUTDOWN_IDLE;
       /* awake task on engine's shutdown wait queue */
-      swake_up_one(&engine->shutdown_wq);
+      complete(&engine->shutdown_completion);
     } else {
       dbg_tfr("no pending transfers, %s engine stays idle.\n", engine->name);
     }
@@ -3073,7 +3073,7 @@ transfer_init(struct xdma_engine* engine, struct xdma_request_cb* req)
   memset(xfer, 0, sizeof(*xfer));
 
   /* initialize wait queue */
-  init_swait_queue_head(&xfer->wq);
+  init_completion(&xfer->completion);
 
   /* remember direction of transfer */
   xfer->dir = engine->dir;
@@ -3375,10 +3375,8 @@ xdma_xfer_submit(struct xdma_dev* xdev,
       engine_service_poll(engine, desc_count);
 
     } else {
-      swait_event_interruptible_timeout_exclusive(
-        xfer->wq,
-        (xfer->state != TRANSFER_STATE_SUBMITTED),
-        msecs_to_jiffies(timeout_ms));
+      wait_for_completion_interruptible_timeout(&xfer->completion,
+                                                msecs_to_jiffies(timeout_ms));
     }
 
     spin_lock_irqsave(&engine->lock, flags);
@@ -3524,7 +3522,7 @@ xdma_performance_submit(struct xdma_dev* xdev, struct xdma_engine* engine)
   transfer->cyclic = 1;
 
   /* initialize wait queue */
-  init_swait_queue_head(&transfer->wq);
+  init_completion(&transfer->completion);
 
   // printk("=== Descriptor print for PERF \n");
   // transfer_dump(transfer);
@@ -3577,7 +3575,7 @@ alloc_dev_instance(struct pci_dev* pdev)
     spin_lock_init(&engine->lock);
     spin_lock_init(&engine->desc_lock);
     INIT_LIST_HEAD(&engine->transfer_list);
-    init_swait_queue_head(&engine->shutdown_wq);
+    init_completion(&engine->shutdown_completion);
     init_swait_queue_head(&engine->xdma_perf_wq);
   }
 
@@ -3586,7 +3584,7 @@ alloc_dev_instance(struct pci_dev* pdev)
     spin_lock_init(&engine->lock);
     spin_lock_init(&engine->desc_lock);
     INIT_LIST_HEAD(&engine->transfer_list);
-    init_swait_queue_head(&engine->shutdown_wq);
+    init_completion(&engine->shutdown_completion);
     init_swait_queue_head(&engine->xdma_perf_wq);
   }
 
@@ -4200,10 +4198,10 @@ transfer_monitor_cyclic(struct xdma_engine* engine,
               engine->name,
               engine->rx_head,
               engine->rx_tail);
-      rc = swait_event_interruptible_timeout_exclusive(
-        transfer->wq,
-        (engine->rx_head != engine->rx_tail || engine->rx_overrun),
-        msecs_to_jiffies(timeout_ms));
+      rc = wait_for_completion_interruptible_timeout(
+        &transfer->completion, msecs_to_jiffies(timeout_ms));
+      if (engine->rx_head != engine->rx_tail || engine->rx_overrun)
+        rc = -EIO;
       dbg_tfr("%s: wait returns %d, rx %d/%d, overrun %d.\n",
               engine->name,
               rc,
@@ -4211,18 +4209,15 @@ transfer_monitor_cyclic(struct xdma_engine* engine,
               engine->rx_tail,
               engine->rx_overrun);
     } else {
-      rc = swait_event_interruptible_timeout_exclusive(
-        transfer->wq, engine->eop_found, msecs_to_jiffies(timeout_ms));
+      rc = wait_for_completion_interruptible_timeout(
+        &transfer->completion, msecs_to_jiffies(timeout_ms));
+      if (!engine->eop_found)
+        rc = -EIO;
       dbg_tfr("%s: wait returns %d, eop_found %d.\n",
               engine->name,
               rc,
               engine->eop_found);
     }
-
-    if (rc == 0) // condition evaluated to false after the timeout elapsed
-      rc = -1;
-    else if (rc > 0) // condition evaluated to true
-      rc = 0;
   }
 
   return rc;
@@ -4663,18 +4658,18 @@ cyclic_shutdown_interrupt(struct xdma_engine* engine)
 
   BUG_ON(!engine);
 
-  rc = swait_event_interruptible_timeout_exclusive(
-    engine->shutdown_wq, !engine->running, msecs_to_jiffies(10000));
+  rc = wait_for_completion_interruptible_timeout(&engine->shutdown_completion,
+                                                 msecs_to_jiffies(10000));
 
 #if 0
 	if (rc) {
-		dbg_tfr("wait_event_interruptible=%d\n", rc);
+		dbg_tfr("wait_for_completion_interruptible_timeout=%d\n", rc);
 		return rc;
 	}
 #endif
 
   if (engine->running) {
-    pr_info("%s still running?!, %d\n", engine->name, rc);
+    pr_info("%s still running?!\n", engine->name);
     return -EINVAL;
   }
 

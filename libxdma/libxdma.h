@@ -20,6 +20,7 @@
 #ifndef XDMA_LIB_H
 #define XDMA_LIB_H
 
+#include <linux/completion.h>
 #include <linux/dma-mapping.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -404,7 +405,7 @@ struct xdma_transfer
   int desc_adjacent;           /* adjacent descriptors at desc_bus */
   int desc_num;                /* number of descriptors in transfer */
   enum dma_data_direction dir;
-  struct swait_queue_head wq;
+  struct completion completion;
 
   enum transfer_state state; /* state of the transfer */
   unsigned int flags;
@@ -481,7 +482,7 @@ struct xdma_engine
   dma_addr_t poll_mode_bus; /* bus addr for descriptor writeback */
 
   /* Members associated with interrupt mode support */
-  struct swait_queue_head shutdown_wq;
+  struct completion shutdown_completion;
   spinlock_t lock;         /* protects concurrent access */
   int prev_cpu;            /* remember CPU# of (last) locker */
   int msix_irq_line;       /* MSI-X vector for this engine */
