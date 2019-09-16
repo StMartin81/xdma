@@ -1407,6 +1407,8 @@ user_irq_service(int irq, struct xdma_user_irq* user_irq)
 
   if (user_irq->handler)
     return user_irq->handler(user_irq->user_idx, user_irq->dev);
+  else
+    dbg_irq("No handler for user IRQ found");
 
   spin_lock_irqsave(&(user_irq->events_lock), flags);
   if (!user_irq->events_irq) {
@@ -1470,6 +1472,9 @@ xdma_isr(int irq, void* dev_id)
      * service routine
      */
     user_interrupts_disable(xdev, user_irq);
+
+    dbg_irq("User IRQ(s) (0x%08x) received -> Try to call user IRQ handler(s)",
+            user_irq);
 
     for (; user < max && user_irq; user++, mask <<= 1) {
       if (user_irq & mask) {
