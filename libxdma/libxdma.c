@@ -292,12 +292,14 @@ static void
 user_interrupts_disable(struct xdma_dev* xdev, u32 mask)
 {
   void* base_address = xdev->bar[xdev->config_bar_idx];
-  struct interrupt_regs* reg =
+  struct interrupt_regs* irq_regs =
     (struct interrupt_regs*)(base_address + XDMA_OFS_INT_CTRL);
 
   write_register(mask,
                  base_address,
-                 (size_t)&reg->user_int_enable_w1c - (size_t)base_address);
+                 (size_t)&irq_regs->user_int_enable_w1c - (size_t)base_address);
+  /* Dummy read to flush the above write */
+  read_register(&irq_regs->channel_int_pending);
 }
 
 /* read_interrupts -- Print the interrupt controller status */
@@ -1463,6 +1465,12 @@ xdma_isr(int irq, void* dev_id)
     u32 mask = 1;
     int max = xdev->h2c_channel_max;
 
+    /*
+     * disable all user interrupts that fired; re-enable the interrupts in the
+     * service routine
+     */
+    user_interrupts_disable(xdev, user_irq);
+
     for (; user < max && user_irq; user++, mask <<= 1) {
       if (user_irq & mask) {
         user_irq &= ~mask;
@@ -1520,13 +1528,28 @@ static irqreturn_t
 xdma_user_irq(int irq, void* dev_id)
 {
   struct xdma_user_irq* user_irq;
+  struct xdma_dev* xdev;
+  struct interrupt_regs* irq_regs;
+  void* base_address;
 
   dbg_irq("(irq=%d) <<<< INTERRUPT SERVICE ROUTINE\n", irq);
 
   BUG_ON(!dev_id);
   user_irq = (struct xdma_user_irq*)dev_id;
+  xdev = user_irq->xdev;
 
-  return user_irq_service(irq, user_irq);
+  base_address = xdev->bar[xdev->config_bar_idx];
+
+  irq_regs = (struct interrupt_regs*)(base_address + XDMA_OFS_INT_CTRL);
+
+  /* Disable this user interrupt */
+  write_register(0x1 << user_irq->user_idx,
+                 base_address,
+                 (size_t)&irq_regs->user_int_enable_w1c - (size_t)base_address);
+  /* Dummy read to flush the above write */
+  read_register(&irq_regs->channel_int_pending);
+
+  return user_irq_service(irq, dev_id);
 }
 
 /*
