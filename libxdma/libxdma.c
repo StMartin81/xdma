@@ -2019,7 +2019,7 @@ irq_msix_channel_setup(struct xdma_dev* xdev)
   engine = xdev->engine_h2c;
   for (i = 0; i < xdev->h2c_channel_max; i++, engine++) {
     vector = pci_irq_vector(xdev->pdev, i);
-    rv = request_irq(vector, xdma_channel_irq, 0, xdev->mod_name, engine);
+    rv = request_irq(vector, xdma_channel_irq, 0, "xdma_h2c_msix", engine);
     if (rv) {
       pr_info(
         "requesti irq#%d failed %d, engine %s.\n", vector, rv, engine->name);
@@ -2032,7 +2032,7 @@ irq_msix_channel_setup(struct xdma_dev* xdev)
   engine = xdev->engine_c2h;
   for (i = 0; i < xdev->c2h_channel_max; i++, j++, engine++) {
     vector = pci_irq_vector(xdev->pdev, j);
-    rv = request_irq(vector, xdma_channel_irq, 0, xdev->mod_name, engine);
+    rv = request_irq(vector, xdma_channel_irq, 0, "xdma_c2h_msix", engine);
     if (rv) {
       pr_info(
         "requesti irq#%d failed %d, engine %s.\n", vector, rv, engine->name);
@@ -2075,8 +2075,8 @@ irq_msix_user_setup(struct xdma_dev* xdev)
   /* vectors set in probe_scan_for_msi() */
   for (i = 0; i < xdev->user_max; i++, j++) {
     u32 vector = pci_irq_vector(xdev->pdev, j);
-    rv =
-      request_irq(vector, xdma_user_irq, 0, xdev->mod_name, &xdev->user_irq[i]);
+    rv = request_irq(
+      vector, xdma_user_irq, 0, "xdma_user_msix", &xdev->user_irq[i]);
     if (rv) {
       pr_info("user %d couldn't use IRQ#%d, %d\n", i, vector, rv);
       break;
@@ -2105,7 +2105,7 @@ irq_msi_setup(struct xdma_dev* xdev, struct pci_dev* pdev)
   int rv;
 
   xdev->irq_line = (int)pdev->irq;
-  rv = request_irq(pdev->irq, xdma_isr, 0, xdev->mod_name, xdev);
+  rv = request_irq(pdev->irq, xdma_isr, 0, "xdma_msi", xdev);
   if (rv)
     dbg_init("Couldn't use IRQ#%d, %d\n", pdev->irq, rv);
   else
@@ -2160,7 +2160,7 @@ irq_legacy_setup(struct xdma_dev* xdev, struct pci_dev* pdev)
   }
 
   xdev->irq_line = (int)pdev->irq;
-  rv = request_irq(pdev->irq, xdma_isr, IRQF_SHARED, xdev->mod_name, xdev);
+  rv = request_irq(pdev->irq, xdma_isr, IRQF_SHARED, "xdma_legacy", xdev);
   if (rv)
     dbg_init("Couldn't use IRQ#%d, %d\n", pdev->irq, rv);
   else
