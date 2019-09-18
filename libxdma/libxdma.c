@@ -1098,9 +1098,6 @@ engine_service_cyclic_interrupt(struct xdma_engine* engine)
    */
   xfer = &engine->cyclic_req->xfer;
   if (enable_credit_mp) {
-    if (eop_count > 0) {
-      // engine->eop_found = 1;
-    }
     complete(&xfer->completion);
   } else {
     if (eop_count > 0) {
