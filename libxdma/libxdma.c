@@ -64,7 +64,7 @@ static unsigned int enable_credit_mp;
 module_param(enable_credit_mp, uint, 0644);
 MODULE_PARM_DESC(
   enable_credit_mp,
-  "Set 1 to enable creidt feature, default is 0 (no credit control)");
+  "Set 1 to enable credit feature, default is 0 (no credit control)");
 
 unsigned int desc_blen_max = XDMA_DESC_BLEN_MAX;
 module_param(desc_blen_max, uint, 0644);
@@ -2725,7 +2725,7 @@ engine_destroy(struct xdma_dev* xdev, struct xdma_engine* engine)
     u32 reg_value = (0x1 << engine->channel) << 16;
     struct sgdma_common_regs* reg =
       (struct sgdma_common_regs*)(xdev->bar[xdev->config_bar_idx] +
-                                  (0x6 * TARGET_SPACING));
+                                  (XDMA_OFS_SGDMA_COMMON));
     write_register(reg_value,
                    base_address,
                    (size_t)&reg->credit_mode_enable_w1c - (size_t)base_address);
@@ -2880,7 +2880,7 @@ engine_init_regs(struct xdma_engine* engine)
     u32 reg_value = (0x1 << engine->channel) << 16;
     struct sgdma_common_regs* reg =
       (struct sgdma_common_regs*)(xdev->bar[xdev->config_bar_idx] +
-                                  (0x6 * TARGET_SPACING));
+                                  (XDMA_OFS_SGDMA_COMMON));
 
     write_register(reg_value,
                    base_address,
@@ -3713,7 +3713,7 @@ probe_for_engine(struct xdma_dev* xdev,
     engine_id_expected = XDMA_ID_H2C;
     engine = &xdev->engine_h2c[channel];
   } else {
-    offset += H2C_CHANNEL_OFFSET;
+    offset += C2H_CHANNEL_OFFSET;
     engine_id_expected = XDMA_ID_C2H;
     engine = &xdev->engine_c2h[channel];
   }
