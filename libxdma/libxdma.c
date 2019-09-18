@@ -4314,6 +4314,11 @@ complete_cyclic(struct xdma_engine* engine, char __user* buf, size_t count)
   head = engine->rx_head;
 
   /* iterate over newly received results */
+  /* TODO: When an overrun occurred this function would return garbage data to
+   * the user as it would simply continue to run until another interrupt was
+   * received and engine->rx_head != engine->rx_tail or an EOP was detected in
+   * the status. Probably it would be better to just return an error code to the
+   * user and to disable the streaming mode. */
   while (engine->rx_head != engine->rx_tail || engine->rx_overrun) {
 
     WARN_ON(result[engine->rx_head].status == 0);
@@ -4371,6 +4376,10 @@ complete_cyclic(struct xdma_engine* engine, char __user* buf, size_t count)
     }
   }
 
+  /* TODO: What happens if another IRQ occurred after the spinlock was released
+   * but the data was not copied to the user yet? Is it possible that the
+   * SG descriptors could be overwritten with new contents and that an overflow
+   * would be undetected in this case? */
   spin_unlock_irqrestore(&engine->lock, flags);
 
   if (fault)
@@ -4416,6 +4425,8 @@ xdma_engine_read_cyclic(struct xdma_engine* engine,
     rc_len += rc;
 
     i++;
+    /* TODO: Shouldn't an error be set if no EOP was set after 10 loop
+     * iterations? */
     if (i > 10)
       break;
   } while (!engine->eop_found);
