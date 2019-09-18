@@ -954,11 +954,6 @@ engine_service_perf(struct xdma_engine* engine, u32 desc_completed)
     /* a descriptor stopped the engine? */
     if (engine->status & XDMA_STAT_DESC_STOPPED) {
       engine->xdma_perf->stopped = 1;
-      /*
-       * wake any XDMA_PERF_IOCTL_STOP waiting for
-       * the performance run to finish
-       */
-      swake_up_one(&engine->xdma_perf_wq);
       dbg_perf("transfer->xdma_perf stopped\n");
     }
   }
@@ -3554,7 +3549,6 @@ alloc_dev_instance(struct pci_dev* pdev)
     spin_lock_init(&engine->desc_lock);
     INIT_LIST_HEAD(&engine->transfer_list);
     init_completion(&engine->shutdown_completion);
-    init_swait_queue_head(&engine->xdma_perf_wq);
   }
 
   engine = xdev->engine_c2h;
@@ -3563,7 +3557,6 @@ alloc_dev_instance(struct pci_dev* pdev)
     spin_lock_init(&engine->desc_lock);
     INIT_LIST_HEAD(&engine->transfer_list);
     init_completion(&engine->shutdown_completion);
-    init_swait_queue_head(&engine->xdma_perf_wq);
   }
 
   return xdev;

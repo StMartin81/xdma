@@ -495,7 +495,6 @@ struct xdma_engine
 
   /* for performance test support */
   struct xdma_performance_ioctl* xdma_perf; /* perf test control */
-  struct swait_queue_head xdma_perf_wq;
 };
 
 struct xdma_user_irq
