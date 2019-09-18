@@ -4348,7 +4348,6 @@ complete_cyclic(struct xdma_engine* engine, char __user* buf, size_t count)
       pkt_length += result[engine->rx_head].length;
       num_credit++;
       /* seen eop? */
-      // if (result[engine->rx_head].status & RX_STATUS_EOP)
       if (result[engine->rx_head].status & RX_STATUS_EOP) {
         eop = 1;
         engine->eop_found = 1;
@@ -4426,6 +4425,9 @@ xdma_engine_read_cyclic(struct xdma_engine* engine,
       break;
   } while (!engine->eop_found);
 
+  /* TODO: Why has eop_found to be set to 0 here? It will be initialized to 0 by
+   * xdma_cyclic_transfer_setup anyways and it doesn't seem to get used later
+   * on. */
   if (enable_credit_mp)
     engine->eop_found = 0;
 
