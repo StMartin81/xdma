@@ -4171,7 +4171,7 @@ transfer_monitor_cyclic(struct xdma_engine* engine,
               engine->rx_tail);
       rc = wait_for_completion_interruptible_timeout(
         &transfer->completion, msecs_to_jiffies(timeout_ms));
-      if (engine->rx_head != engine->rx_tail || engine->rx_overrun)
+      if (engine->rx_head == engine->rx_tail || engine->rx_overrun)
         rc = -EIO;
       dbg_tfr("%s: wait returns %d, rx %d/%d, overrun %d.\n",
               engine->name,
