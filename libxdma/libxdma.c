@@ -1123,25 +1123,6 @@ engine_service_cyclic_interrupt(struct xdma_engine* engine)
   return 0;
 }
 
-/* must be called with engine->lock already acquired */
-static int
-engine_service_cyclic(struct xdma_engine* engine)
-{
-  int rc = 0;
-
-  dbg_tfr("engine_service_cyclic()");
-
-  BUG_ON(!engine);
-  BUG_ON(engine->magic != MAGIC_ENGINE);
-
-  if (poll_mode)
-    rc = engine_service_cyclic_polled(engine);
-  else
-    rc = engine_service_cyclic_interrupt(engine);
-
-  return rc;
-}
-
 static void
 engine_service_resume(struct xdma_engine* engine)
 {
@@ -1288,7 +1269,7 @@ engine_service_work(struct work_struct* work)
 
   dbg_tfr("engine_service() for %s engine %p\n", engine->name, engine);
   if (engine->cyclic_req)
-    engine_service_cyclic(engine);
+    engine_service_cyclic_interrupt(engine);
   else
     engine_service(engine, 0);
 
@@ -1389,7 +1370,7 @@ engine_service_poll(struct xdma_engine* engine, u32 expected_desc_count)
   spin_lock_irqsave(&engine->lock, flags);
   dbg_tfr("%s service.\n", engine->name);
   if (engine->cyclic_req) {
-    rv = engine_service_cyclic(engine);
+    rv = engine_service_cyclic_polled(engine);
   } else {
     rv = engine_service(engine, desc_wb);
   }
