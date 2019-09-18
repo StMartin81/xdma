@@ -1366,6 +1366,8 @@ engine_service_poll(struct xdma_engine* engine, u32 expected_desc_count)
   } else {
     rv = engine_service(engine, desc_wb);
   }
+  /* TODO: Why is spin_unlock_irqrestore used in this case? We are not using any
+   * interrupts in poll mode. Why are the interrupts disabled then? */
   spin_unlock_irqrestore(&engine->lock, flags);
 
   return rv;
