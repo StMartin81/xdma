@@ -19,6 +19,9 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
 
+#include "libxdma.h"
+#include "cdev_sgdma.h"
+#include "libxdma_api.h"
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -26,14 +29,9 @@
 #include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/vmalloc.h>
-
-#include "cdev_sgdma.h"
-#include "libxdma.h"
-#include "libxdma_api.h"
 #ifdef __LIBXDMA_DEBUG__
 #include <linux/msi.h>
 #endif
-
 /* SECTION: Module licensing */
 
 #ifdef __LIBXDMA_MOD__
