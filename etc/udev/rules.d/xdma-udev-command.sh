@@ -1,4 +1,4 @@
- #!/bin/bash
+#!/bin/bash
 #
 # Renames xdma%d_c2h_%d to xdma/card%d/c2h%d
 # Renames xdma%d_h2c_%d to xdma/card%d/h2c%d
