@@ -6,10 +6,17 @@ include /usr/share/dpkg/pkg-info.mk
 	dh $@ --with dkms
 
 override_dh_install:
-	dh_install etc ./
-	dh_install libxdma usr/src/xdma-$(DEB_VERSION_UPSTREAM)
-	dh_install include usr/src/xdma-$(DEB_VERSION_UPSTREAM)
-	dh_install xdma usr/src/xdma-$(DEB_VERSION_UPSTREAM)
+	dh_install include/*.h \
+		usr/src/xdma-$(DEB_VERSION_UPSTREAM)/include
+	dh_install libxdma/*.h \
+		libxdma/*.c \
+		usr/src/xdma-$(DEB_VERSION_UPSTREAM)/libxdma
+	dh_install xdma/*.h \
+		xdma/*.c \
+		xdma/Makefile \
+		xdma/common.mk \
+		xdma/Kbuild \
+		usr/src/xdma-$(DEB_VERSION_UPSTREAM)/xdma
 
 override_dh_dkms:
 	dh_dkms -V $(DEB_VERSION_UPSTREAM)
