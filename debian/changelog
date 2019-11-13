@@ -1,0 +1,5 @@
+xdma-dkms (2018.3.50-0) stretch; urgency=medium
+
+  * Initial package.
+
+ -- Martin Stolpe <martin.stolpe@iaf.fraunhofer.de>  Fri, 25 Oct 2019 14:20:58 +0100

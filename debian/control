@@ -1,0 +1,10 @@
+Source: xdma-dkms
+Section: misc
+Maintainer: Martin Stolpe <martin.stolpe@iaf.fraunhofer.de>
+Build-Depends: debhelper (>= 10), dkms
+Standards-Version: 3.8.1
+
+Package: xdma-dkms
+Architecture: all
+Depends: dkms (>= 1.95), ${misc:Depends}
+Description: DKMS source for the Xilinx xdma driver

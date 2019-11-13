@@ -1,0 +1,11 @@
+PACKAGE_NAME="xdma"
+PACKAGE_VERSION="#MODULE_VERSION#"
+
+BUILT_MODULE_NAME[0]="$PACKAGE_NAME"
+BUILT_MODULE_LOCATION[0]="xdma"
+MAKE[0]="make -C ${kernel_source_dir} M=$dkms_tree/$module/$module_version/build/xdma"
+CLEAN[0]="make -C $dkms_tree/$module/$module_version/build/xdma clean"
+DEST_MODULE_LOCATION[0]="/updates"
+
+AUTOINSTALL="YES"
+REMAKE_INITRD="YES"
