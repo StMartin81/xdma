@@ -1,0 +1,13 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Source: https://github.com/Xilinx/dma_ip_drivers/tree/master/XDMA/linux-kernel
+License: GPL-2 or BSD-3-clause
+Copyright: 2019 Xilinx, Inc.
+Copyright: 2019 Fraunhofer-Institut für Angewandte Festkörperphysik IAF
+
+License: GPL-2
+ On Debian systems, the complete text of the GNU General Public License
+ version 2 can be found in "/usr/share/common-licenses/GPL-2".
+
+License: BSD-3-clause
+ On Debian systems, the complete text of the Revised BSD License
+ (3-clause) can be found in "/usr/share/common-licenses/BSD".
