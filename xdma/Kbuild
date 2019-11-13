@@ -1,0 +1,15 @@
+subdir-ccflags-y += -I$(obj)/../include
+	
+define xdma-y
+	libxdma.o
+	xdma_cdev.o
+	cdev_ctrl.o
+	cdev_events.o
+	cdev_sgdma.o
+	cdev_bypass.o
+	xdma_sysctl.o
+	xdma_mod.o
+endef
+xdma-y := $(strip $(xdma-y)) 
+
+obj-${CONFIG_XDMA} := xdma.o

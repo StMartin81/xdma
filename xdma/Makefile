@@ -1,24 +1,5 @@
-ifneq ($(KERNELRELEASE),)
-	subdir-ccflags-y += -I$(obj)/../include
-	subdir-ccflags-y += -D__LIBXDMA_DEBUG__
+#	subdir-ccflags-y += -D__LIBXDMA_DEBUG__
 #	subdir-ccflags-y += -DINTERNAL_TESTING
-
-	obj-m := xdma.o
-
-define xdma-y
-	libxdma.o
-	xdma_cdev.o
-	cdev_ctrl.o
-	cdev_events.o
-	cdev_sgdma.o
-	cdev_bypass.o
-	xdma_sysctl.o
-	xdma_mod.o
-endef
-xdma-y := $(strip $(xdma-y))
-else # ifneq($(KERNELRELEASE),)
-
-# normal makefile
 
 DRIVER := xdma
 
@@ -41,7 +22,6 @@ define cmd_initramfs
 -@$(call cmd_initrd)
 endef
 endif # ifeq (${cmd_initrd},)
-endif # ifneq($(KERNELRELEASE),)
 
 
 # Standard compilation, with regular output
