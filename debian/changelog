@@ -1,4 +1,4 @@
-xdma-dkms (2018.3.50-0) stretch; urgency=medium
+xdma (2018.3.50-0) stretch; urgency=medium
 
   * Initial package.
 
