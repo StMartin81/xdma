@@ -1,4 +1,7 @@
 subdir-ccflags-y += -I$(obj)/../include
+
+# subdir-ccflags-y += -D__LIBXDMA_DEBUG__
+# subdir-ccflags-y += -DINTERNAL_TESTING
 	
 define xdma-y
 	libxdma.o

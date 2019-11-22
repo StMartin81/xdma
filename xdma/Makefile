@@ -1,6 +1,3 @@
-#	subdir-ccflags-y += -D__LIBXDMA_DEBUG__
-#	subdir-ccflags-y += -DINTERNAL_TESTING
-
 DRIVER := xdma
 
 # If the user just wants to print the help output, don't include common.mk or
