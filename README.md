@@ -8,13 +8,13 @@ $ pbuilder-dist bionic create
 The following commands will create the Debian package:
 ```
 $ dpkg-buildpackage -S -us -uc
-$ pbuilder-dist bionic build ../xdma_2018.3.50-0.dsc
+$ pbuilder-dist bionic build ../xdma_2018.3.50.dsc
 ```
 
 # Install Driver
 If you used the PBuilder environment the driver can be installed with the following command:
 ```
-# dpkg -i ~/pbuilder/bionic_result/xdma-dkms_2018.3.50-0_all.deb
+# dpkg -i ~/pbuilder/bionic_result/xdma-dkms_2018.3.50_all.deb
 ```
 
 # Install Driver Manually
