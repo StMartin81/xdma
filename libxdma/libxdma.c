@@ -793,8 +793,7 @@ engine_service_transfer_list(struct xdma_engine* engine,
             engine->name,
             transfer,
             transfer->desc_num);
-    /* remove completed transfer from list */
-    list_del(engine->transfer_list.next);
+
     /* add to dequeued number of descriptors during this run */
     engine->desc_dequeued += transfer->desc_num;
     /* mark transfer as succesfully completed */
@@ -803,6 +802,9 @@ engine_service_transfer_list(struct xdma_engine* engine,
     /* Complete transfer - sets transfer to NULL if an async
      * transfer has completed */
     complete(&transfer->completion);
+
+    /* remove completed transfer from list */
+    list_del(engine->transfer_list.next);
 
     /* if exists, get the next transfer on the list */
     if (!list_empty(&engine->transfer_list)) {
@@ -904,16 +906,16 @@ engine_service_final_transfer(struct xdma_engine* engine,
     }
 
   transfer_del:
-    /* remove completed transfer from list */
-    list_del(engine->transfer_list.next);
-    /* add to dequeued number of descriptors during this run */
-    engine->desc_dequeued += transfer->desc_num;
-
     /*
      * Complete transfer - sets transfer to NULL if an asynchronous
      * transfer has completed
      */
     complete(&transfer->completion);
+
+    /* add to dequeued number of descriptors during this run */
+    engine->desc_dequeued += transfer->desc_num;
+    /* remove completed transfer from list */
+    list_del(engine->transfer_list.next);
   }
 
   return transfer;
