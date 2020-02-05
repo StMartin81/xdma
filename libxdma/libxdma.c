@@ -3309,8 +3309,10 @@ xdma_xfer_submit(struct xdma_dev* xdev,
       engine_service_poll(engine, desc_count);
 
     } else {
-      wait_for_completion_interruptible_timeout(&xfer->completion,
+      rv = wait_for_completion_interruptible_timeout(&xfer->completion,
                                                 msecs_to_jiffies(timeout_ms));
+      if (rv < 1)
+        pr_err("Error while waiting for completion\n");
     }
 
     spin_lock_irqsave(&engine->lock, flags);
