@@ -768,24 +768,6 @@ engine_service_shutdown(struct xdma_engine* engine)
 }
 
 struct xdma_transfer*
-engine_transfer_completion(struct xdma_engine* engine,
-                           struct xdma_transfer* transfer)
-{
-  BUG_ON(!engine);
-
-  if (unlikely(!transfer)) {
-    pr_info("%s: xfer empty.\n", engine->name);
-    return NULL;
-  }
-
-  /* synchronous I/O? */
-  /* awake task on transfer's wait queue */
-  complete(&transfer->completion);
-
-  return transfer;
-}
-
-struct xdma_transfer*
 engine_service_transfer_list(struct xdma_engine* engine,
                              struct xdma_transfer* transfer,
                              u32* pdesc_completed)
@@ -820,7 +802,7 @@ engine_service_transfer_list(struct xdma_engine* engine,
 
     /* Complete transfer - sets transfer to NULL if an async
      * transfer has completed */
-    transfer = engine_transfer_completion(engine, transfer);
+    complete(&transfer->completion);
 
     /* if exists, get the next transfer on the list */
     if (!list_empty(&engine->transfer_list)) {
@@ -931,7 +913,7 @@ engine_service_final_transfer(struct xdma_engine* engine,
      * Complete transfer - sets transfer to NULL if an asynchronous
      * transfer has completed
      */
-    transfer = engine_transfer_completion(engine, transfer);
+    complete(&transfer->completion);
   }
 
   return transfer;
