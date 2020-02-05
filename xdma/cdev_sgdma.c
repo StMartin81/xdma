@@ -185,7 +185,7 @@ char_sgdma_map_user_buf_to_sgl(struct xdma_io_cb* cb, bool write)
   unsigned int pages_nr = (((unsigned long)buf + len + PAGE_SIZE - 1) -
                            ((unsigned long)buf & PAGE_MASK)) >>
                           PAGE_SHIFT;
-  int i;
+  size_t i;
   int rv;
 
   if (pages_nr == 0) {
@@ -221,7 +221,7 @@ char_sgdma_map_user_buf_to_sgl(struct xdma_io_cb* cb, bool write)
 
   for (i = 1; i < pages_nr; i++) {
     if (cb->pages[i - 1] == cb->pages[i]) {
-      pr_err("duplicate pages, %d, %d.\n", i - 1, i);
+      pr_err("duplicate pages, %zu, %zu.\n", i - 1, i);
       rv = -EFAULT;
       cb->pages_nr = pages_nr;
       goto err_out;

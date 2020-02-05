@@ -677,7 +677,7 @@ engine_start(struct xdma_engine* engine)
 {
   struct xdma_transfer* transfer;
   u32 w;
-  int extra_adj = 0;
+  u32 extra_adj = 0;
   void* base_address;
 
   /* engine must be idle */
@@ -853,7 +853,7 @@ engine_err_handle(struct xdma_engine* engine,
   }
 
   if (printk_ratelimit()) {
-    pr_info("%s, s 0x%x, aborted xfer 0x%p, cmpl %d/%d\n",
+    pr_info("%s, s 0x%x, aborted xfer 0x%p, cmpl %u/%u\n",
             engine->name,
             engine->status,
             transfer,
@@ -896,7 +896,7 @@ engine_service_final_transfer(struct xdma_engine* engine,
     /* the engine stopped on current transfer? */
     if (*pdesc_completed < transfer->desc_num) {
       transfer->state = TRANSFER_STATE_FAILED;
-      pr_info("%s, xfer 0x%p, stopped half-way, %d/%d.\n",
+      pr_info("%s, xfer 0x%p, stopped half-way, %u/%u.\n",
               engine->name,
               transfer,
               *pdesc_completed,
@@ -1200,7 +1200,7 @@ engine_service(struct xdma_engine* engine, int desc_writeback)
    */
   if (!desc_count)
     desc_count = read_register(&engine->regs->completed_desc_count);
-  dbg_tfr("desc_count = %d\n", desc_count);
+  dbg_tfr("desc_count = %u\n", desc_count);
 
   /* transfers on queue? */
   if (!list_empty(&engine->transfer_list)) {
@@ -1208,13 +1208,13 @@ engine_service(struct xdma_engine* engine, int desc_writeback)
     transfer =
       list_entry(engine->transfer_list.next, struct xdma_transfer, entry);
 
-    dbg_tfr("head of queue transfer 0x%p has %d descriptors\n",
+    dbg_tfr("head of queue transfer 0x%p has %u descriptors\n",
             transfer,
             (int)transfer->desc_num);
 
-    dbg_tfr("Engine completed %d desc, %d not yet dequeued\n",
-            (int)desc_count,
-            (int)desc_count - engine->desc_dequeued);
+    dbg_tfr("Engine completed %u desc, %u not yet dequeued\n",
+            desc_count,
+            desc_count - engine->desc_dequeued);
 
     engine_service_perf(engine, desc_count);
   }
@@ -2287,7 +2287,7 @@ transfer_dump(struct xdma_transfer* transfer)
           transfer->len,
           transfer->last_in_request);
 
-  pr_info("transfer 0x%p, desc %d, bus 0x%llx, adj %d.\n",
+  pr_info("transfer 0x%p, desc %u, bus 0x%llx, adj %u.\n",
           transfer,
           transfer->desc_num,
           (u64)transfer->desc_bus,
@@ -2312,13 +2312,13 @@ transfer_dump(struct xdma_transfer* transfer)
  *
  */
 static void
-transfer_desc_init(struct xdma_transfer* transfer, int count)
+transfer_desc_init(struct xdma_transfer* transfer, u32 count)
 {
   struct xdma_desc* desc_virt = transfer->desc_virt;
   dma_addr_t desc_bus = transfer->desc_bus;
   int i;
-  int adj = count - 1;
-  int extra_adj;
+  u32 adj = count - 1;
+  u32 extra_adj;
   u32 temp_control;
 
   BUG_ON(count > XDMA_TRANSFER_MAX_DESC);
@@ -2402,9 +2402,9 @@ xdma_desc_link(struct xdma_desc* first,
 
 /* xdma_desc_adjacent -- Set how many descriptors are adjacent to this one */
 static void
-xdma_desc_adjacent(struct xdma_desc* desc, int next_adjacent)
+xdma_desc_adjacent(struct xdma_desc* desc, u32 next_adjacent)
 {
-  int extra_adj = 0;
+  u32 extra_adj = 0;
   /* remember reserved and control bits */
   u32 control = le32_to_cpu(desc->control) & 0x0000f0ffUL;
   u32 max_adj_4k = 0;
@@ -2414,13 +2414,9 @@ xdma_desc_adjacent(struct xdma_desc* desc, int next_adjacent)
     if (extra_adj > MAX_EXTRA_ADJ) {
       extra_adj = MAX_EXTRA_ADJ;
     }
-    max_adj_4k = (0x1000 - ((le32_to_cpu(desc->next_lo)) & 0xFFF)) / 32 - 1;
+    max_adj_4k = (0x1000u - ((le32_to_cpu(desc->next_lo)) & 0xFFFu)) / 32u - 1u;
     if (extra_adj > max_adj_4k) {
       extra_adj = max_adj_4k;
-    }
-    if (extra_adj < 0) {
-      printk("Warning: extra_adj<0, converting it to 0\n");
-      extra_adj = 0;
     }
   }
   /* merge adjacent and control field */
@@ -2520,7 +2516,7 @@ transfer_abort(struct xdma_engine* engine, struct xdma_transfer* transfer)
   BUG_ON(!transfer);
   BUG_ON(transfer->desc_num == 0);
 
-  pr_info("abort transfer 0x%p, desc %d, engine desc queued %d.\n",
+  pr_info("abort transfer 0x%p, desc %u, engine desc queued %u.\n",
           transfer,
           transfer->desc_num,
           engine->desc_dequeued);
@@ -3009,12 +3005,11 @@ transfer_build(struct xdma_engine* engine,
 {
   struct xdma_transfer* xfer = &req->xfer;
   struct sw_desc* sdesc = &(req->sdesc[req->sw_desc_idx]);
-  int i = 0;
-  int j = 0;
+  size_t i = 0;
 
-  for (; i < desc_max; i++, j++, sdesc++) {
-    dbg_desc("sw desc %d/%u: 0x%llx, 0x%x, ep 0x%llx.\n",
-             i + req->sw_desc_idx,
+  for (i = 0; i < desc_max; i++) {
+    dbg_desc("sw desc %zu/%u: 0x%llx, 0x%x, ep 0x%llx.\n",
+             req->sw_desc_idx + i,
              req->sw_desc_cnt,
              sdesc->addr,
              sdesc->len,
@@ -3022,12 +3017,12 @@ transfer_build(struct xdma_engine* engine,
 
     /* fill in descriptor entry j with transfer details */
     xdma_desc_set(
-      xfer->desc_virt + j, sdesc->addr, req->ep_addr, sdesc->len, xfer->dir);
-    xfer->len += sdesc->len;
+      &(xfer->desc_virt[i]), sdesc[i].addr, req->ep_addr, sdesc[i].len, xfer->dir);
+    xfer->len += sdesc[i].len;
 
     /* for non-inc-add mode don't increment ep_addr */
     if (!engine->non_incr_addr)
-      req->ep_addr += sdesc->len;
+      req->ep_addr += sdesc[i].len;
   }
   req->sw_desc_idx += desc_max;
   return 0;
@@ -3037,10 +3032,10 @@ static int
 transfer_init(struct xdma_engine* engine, struct xdma_request_cb* req)
 {
   struct xdma_transfer* xfer = &req->xfer;
-  unsigned int desc_max = min_t(
-    unsigned int, req->sw_desc_cnt - req->sw_desc_idx, XDMA_TRANSFER_MAX_DESC);
-  int i = 0;
-  int last = 0;
+  u32 desc_max = min_t(
+    u32, req->sw_desc_cnt - req->sw_desc_idx, XDMA_TRANSFER_MAX_DESC);
+  u32 i = 0;
+  u32 last = 0;
   u32 control;
 
   memset(xfer, 0, sizeof(*xfer));
@@ -3071,10 +3066,10 @@ transfer_init(struct xdma_engine* engine, struct xdma_request_cb* req)
 
   xfer->desc_num = xfer->desc_adjacent = desc_max;
 
-  dbg_sg("transfer 0x%p has %d descriptors\n", xfer, xfer->desc_num);
+  dbg_sg("transfer 0x%p has %u descriptors\n", xfer, xfer->desc_num);
   /* fill in adjacent numbers */
   for (i = 0; i < xfer->desc_num; i++)
-    xdma_desc_adjacent(xfer->desc_virt + i, xfer->desc_num - i - 1);
+    xdma_desc_adjacent(xfer->desc_virt + i, xfer->desc_num - i - 1u);
 
   return 0;
 }
@@ -3083,7 +3078,7 @@ transfer_init(struct xdma_engine* engine, struct xdma_request_cb* req)
 static void
 sgt_dump(struct sg_table* sgt)
 {
-  int i;
+  unsigned int i;
   struct scatterlist* sg = sgt->sgl;
 
   pr_info("sgt 0x%p, sgl 0x%p, nents %u/%u.\n",
@@ -3093,7 +3088,7 @@ sgt_dump(struct sg_table* sgt)
           sgt->orig_nents);
 
   for (i = 0; i < sgt->orig_nents; i++, sg = sg_next(sg))
-    pr_info("%d, 0x%p, pg 0x%p,%u+%u, dma 0x%llx,%u.\n",
+    pr_info("%u, 0x%p, pg 0x%p,%u+%u, dma 0x%llx,%u.\n",
             i,
             sg,
             sg_page(sg),
@@ -3162,7 +3157,7 @@ xdma_init_request(struct sg_table* sgt, u64 ep_addr)
   struct scatterlist* sg = sgt->sgl;
   int max = sgt->nents;
   int extra = 0;
-  int i, j = 0;
+  size_t i, j = 0;
 
   for (i = 0; i < max; i++, sg = sg_next(sg)) {
     unsigned int len = sg_dma_len(sg);
@@ -3222,6 +3217,7 @@ xdma_xfer_submit(struct xdma_dev* xdev,
   ssize_t done = 0;
   struct scatterlist* sg = sgt->sgl;
   int nents;
+  u32 sw_desc_cnt;
   enum dma_data_direction dir = write ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
   struct xdma_request_cb* req = NULL;
 
@@ -3275,7 +3271,7 @@ xdma_xfer_submit(struct xdma_dev* xdev,
       pr_info("map sgl failed, sgt 0x%p.\n", sgt);
       return -EIO;
     }
-    sgt->nents = nents;
+    sgt->nents = (u32)nents;
   } else {
     BUG_ON(!sgt->nents);
   }
@@ -3290,8 +3286,8 @@ xdma_xfer_submit(struct xdma_dev* xdev,
     "%s, len %u sg cnt %u.\n", engine->name, req->total_len, req->sw_desc_cnt);
 
   sg = sgt->sgl;
-  nents = req->sw_desc_cnt;
-  while (nents) {
+  sw_desc_cnt = req->sw_desc_cnt;
+  while (sw_desc_cnt) {
     unsigned long flags;
     struct xdma_transfer* xfer;
 
@@ -3310,8 +3306,8 @@ xdma_xfer_submit(struct xdma_dev* xdev,
       xfer->flags = XFER_FLAG_NEED_UNMAP;
 
     /* last transfer for the given request? */
-    nents -= xfer->desc_num;
-    if (!nents) {
+    sw_desc_cnt -= xfer->desc_num;
+    if (!sw_desc_cnt) {
       xfer->last_in_request = 1;
       xfer->sgt = sgt;
     }
@@ -3339,7 +3335,7 @@ xdma_xfer_submit(struct xdma_dev* xdev,
      * engine to determine the writeback value expected
      */
     if (poll_mode) {
-      unsigned int desc_count;
+      u32 desc_count;
 
       spin_lock_irqsave(&engine->lock, flags);
       desc_count = xfer->desc_num;
@@ -3432,10 +3428,10 @@ xdma_performance_submit(struct xdma_dev* xdev, struct xdma_engine* engine)
   dma_addr_t buffer_bus;                     /* bus address */
   struct xdma_transfer* transfer;
   u64 ep_addr = 0;
-  int num_desc_in_a_loop = 128;
+  u32 num_desc_in_a_loop = 128;
   int size_in_desc = engine->xdma_perf->transfer_size;
   int size = size_in_desc * num_desc_in_a_loop;
-  int i;
+  u32 i;
 
   BUG_ON(size_in_desc > max_consistent_size);
 
@@ -4506,7 +4502,7 @@ xdma_cyclic_transfer_setup(struct xdma_engine* engine)
   struct xdma_transfer* xfer;
   dma_addr_t bus;
   unsigned long flags;
-  int i;
+  u32 i;
   int rc;
   void* base_address;
 

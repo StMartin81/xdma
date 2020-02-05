@@ -402,8 +402,8 @@ struct xdma_transfer
   struct list_head entry;      /* queue of non-completed transfers */
   struct xdma_desc* desc_virt; /* virt addr of the 1st descriptor */
   dma_addr_t desc_bus;         /* bus addr of the first descriptor */
-  int desc_adjacent;           /* adjacent descriptors at desc_bus */
-  int desc_num;                /* number of descriptors in transfer */
+  u32 desc_adjacent;           /* adjacent descriptors at desc_bus */
+  u32 desc_num;                /* number of descriptors in transfer */
   enum dma_data_direction dir;
   struct completion completion;
 
@@ -412,7 +412,7 @@ struct xdma_transfer
 #define XFER_FLAG_NEED_UNMAP 0x1
   int cyclic;          /* flag if transfer is cyclic */
   int last_in_request; /* flag if last within request */
-  unsigned int len;
+  unsigned int len;    /* total number of bytes which are scheduled / were already transferred */
   struct sg_table* sgt;
 };
 
@@ -424,9 +424,9 @@ struct xdma_request_cb
 
   struct xdma_transfer xfer;
 
-  unsigned int sw_desc_idx;
-  unsigned int sw_desc_cnt;
-  struct sw_desc sdesc[0];
+  u32 sw_desc_idx;
+  u32 sw_desc_cnt;
+  struct sw_desc sdesc[0]; /* real array will be allocated in xdma_request_alloc */
 };
 
 struct xdma_engine
@@ -455,7 +455,7 @@ struct xdma_engine
   int addr_bits;                   /* HW datapath address width */
   int channel;                     /* engine indices */
   int max_extra_adj;               /* descriptor prefetch capability */
-  int desc_dequeued;               /* num descriptors of completed transfers */
+  u32 desc_dequeued;               /* num descriptors of completed transfers */
   u32 status;                      /* last known status of device */
   u32 interrupt_enable_mask_value; /* only used for MSIX mode to store
                                       per-engine interrupt mask value */

@@ -26,7 +26,7 @@ copy_desc_data(struct xdma_transfer* transfer,
                size_t* buf_offset,
                size_t buf_size)
 {
-  int i;
+  size_t i;
   int copy_err;
   int rc = 0;
 
@@ -37,7 +37,7 @@ copy_desc_data(struct xdma_transfer* transfer,
   for (i = 0; i < transfer->desc_num; i++) {
     if (*buf_offset + sizeof(struct xdma_desc) <= buf_size) {
       copy_err = copy_to_user(
-        &buf[*buf_offset], transfer->desc_virt + i, sizeof(struct xdma_desc));
+        &buf[*buf_offset], &(transfer->desc_virt[i]), sizeof(struct xdma_desc));
 
       if (copy_err) {
         dbg_sg("Copy to user buffer failed\n");
