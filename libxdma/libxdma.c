@@ -3157,9 +3157,9 @@ xdma_init_request(struct sg_table* sgt, u64 ep_addr)
         tlen = 0;
       }
       j++;
+      BUG_ON(j > max);
     }
   }
-  BUG_ON(j > max);
 
   req->sw_desc_cnt = j;
 #ifdef __LIBXDMA_DEBUG__
