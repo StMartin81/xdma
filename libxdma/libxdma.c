@@ -3262,8 +3262,7 @@ xdma_xfer_submit(struct xdma_dev* xdev,
     /* build transfer */
     rv = transfer_init(engine, req);
     if (rv < 0) {
-      spin_unlock(&engine->desc_lock);
-      goto unmap_sgl;
+      goto release_desc_lock;
     }
     xfer = &req->xfer;
 
@@ -3290,9 +3289,8 @@ xdma_xfer_submit(struct xdma_dev* xdev,
 
     rv = transfer_queue(engine, xfer);
     if (rv < 0) {
-      spin_unlock(&engine->desc_lock);
       pr_info("unable to submit %s, %d.\n", engine->name, rv);
-      goto unmap_sgl;
+      goto release_desc_lock;
     }
 
     /*
@@ -3312,7 +3310,10 @@ xdma_xfer_submit(struct xdma_dev* xdev,
       rv = wait_for_completion_interruptible_timeout(&xfer->completion,
                                                 msecs_to_jiffies(timeout_ms));
       if (rv < 1)
+      {
         pr_err("Error while waiting for completion\n");
+        goto destroy_transfer;
+      }
     }
 
     spin_lock_irqsave(&engine->lock, flags);
@@ -3327,7 +3328,6 @@ xdma_xfer_submit(struct xdma_dev* xdev,
                 req->ep_addr - xfer->len,
                 done);
         done += xfer->len;
-        rv = 0;
         break;
       case TRANSFER_STATE_FAILED:
         pr_info("xfer 0x%p,%u, failed, ep 0x%llx.\n",
@@ -3364,7 +3364,9 @@ xdma_xfer_submit(struct xdma_dev* xdev,
         break;
     }
 
+destroy_transfer:
     transfer_destroy(xdev, xfer);
+release_desc_lock:
     spin_unlock(&engine->desc_lock);
 
     if (rv < 0)
