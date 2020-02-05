@@ -296,8 +296,7 @@ user_interrupts_disable(struct xdma_dev* xdev, u32 mask)
   write_register(mask,
                  base_address,
                  (size_t)&irq_regs->user_int_enable_w1c - (size_t)base_address);
-  /* Dummy read to flush the above write */
-  read_register(&irq_regs->channel_int_pending);
+  wmb();
 }
 
 /* read_interrupts -- Print the interrupt controller status */
@@ -591,7 +590,7 @@ xdma_engine_stop(struct xdma_engine* engine)
           (u32*)&engine->regs->control);
   write_register(
     w, base_address, (size_t)&engine->regs->control - (size_t)base_address);
-  /* dummy read of status register to flush all previous writes */
+  wmb();
   dbg_tfr("xdma_engine_stop(%s) done\n", engine->name);
 }
 
@@ -649,11 +648,8 @@ engine_start_mode_config(struct xdma_engine* engine)
   write_register(
     w, base_address, (size_t)&engine->regs->control - (size_t)base_address);
 
-  /* dummy read of status register to flush all previous writes */
-  w = read_register(&engine->regs->status);
-  dbg_tfr("ioread32(0x%p) = 0x%08x (dummy read flushes writes).\n",
-          &engine->regs->status,
-          w);
+  dbg_tfr("mb(): Make sure registers are written.\n");
+  mb();
 }
 
 /**
@@ -731,13 +727,12 @@ engine_start(struct xdma_engine* engine)
                  (size_t)&engine->sgdma_regs->first_desc_adjacent -
                    (size_t)base_address);
 
-  dbg_tfr("ioread32(0x%p) (dummy read flushes writes).\n",
-          &engine->regs->status);
-  mmiowb();
+  dbg_tfr("wmb(): Make sure registers are written.\n");
+  wmb();
 
   engine_start_mode_config(engine);
 
-  engine_status_read(engine, 0, 0);
+  engine_status_read(engine, 0, 1);
 
   dbg_tfr("%s engine 0x%p now running\n", engine->name, engine);
   /* remember the engine is running */
@@ -1524,8 +1519,7 @@ xdma_user_irq(int irq, void* dev_id)
   write_register(0x1 << user_irq->user_idx,
                  base_address,
                  (size_t)&irq_regs->user_int_enable_w1c - (size_t)base_address);
-  /* Dummy read to flush the above write */
-  read_register(&irq_regs->channel_int_pending);
+  wmb();
 
   return user_irq_service(irq, dev_id);
 }
@@ -1564,8 +1558,7 @@ xdma_channel_irq(int irq, void* dev_id)
                  base_address,
                  (size_t)&engine->regs->interrupt_enable_mask_w1c -
                    (size_t)base_address);
-  /* Dummy read to flush the above write */
-  read_register(&irq_regs->channel_int_pending);
+  wmb();
   /* Schedule the bottom half */
   schedule_work(&engine->work);
 
