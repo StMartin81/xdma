@@ -3232,7 +3232,7 @@ xdma_xfer_submit(struct xdma_dev* xdev,
 
   if (!dma_mapped) {
     nents = pci_map_sg(xdev->pdev, sg, sgt->orig_nents, dir);
-    if (!nents) {
+    if (nents <= 0) {
       pr_info("map sgl failed, sgt 0x%p.\n", sgt);
       return -EIO;
     }
