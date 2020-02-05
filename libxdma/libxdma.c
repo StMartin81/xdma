@@ -545,6 +545,13 @@ engine_status_read(struct xdma_engine* engine, bool clear, bool dump)
   else
     value = engine->status = read_register(&engine->regs->status);
 
+  if (value & 0xffffffb8u)
+  {
+    pr_err("Channel status: 0x%x\n", value & 0xffffffb8u);
+    /* TODO: Implement error handling in case error was detected: Reset engine? */
+    BUG_ON(1);
+  }
+
   if (dump)
     engine_status_dump(engine);
 
