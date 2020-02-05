@@ -805,7 +805,7 @@ engine_service_transfer_list(struct xdma_engine* engine,
 static void
 engine_err_handle(struct xdma_engine* engine,
                   struct xdma_transfer* transfer,
-                  u32 desc_completed)
+                  u32 const desc_completed)
 {
   u32 value;
 
