@@ -3148,7 +3148,7 @@ xdma_init_request(struct sg_table* sgt, u64 ep_addr)
     req->total_len += tlen;
     while (tlen) {
       req->sdesc[j].addr = addr;
-      if (tlen > desc_blen_max) {
+      if (unlikely(tlen > desc_blen_max)) {
         req->sdesc[j].len = desc_blen_max;
         addr += desc_blen_max;
         tlen -= desc_blen_max;
