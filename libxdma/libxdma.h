@@ -454,7 +454,6 @@ struct xdma_engine
   int len_granularity;             /* transfer length multiple */
   int addr_bits;                   /* HW datapath address width */
   int channel;                     /* engine indices */
-  int max_extra_adj;               /* descriptor prefetch capability */
   u32 desc_dequeued;               /* num descriptors of completed transfers */
   u32 status;                      /* last known status of device */
   u32 interrupt_enable_mask_value; /* only used for MSIX mode to store
