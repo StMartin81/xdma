@@ -767,28 +767,22 @@ engine_service_shutdown(struct xdma_engine* engine)
   complete(&engine->shutdown_completion);
 }
 
-struct xdma_transfer*
+void
 engine_service_transfer_list(struct xdma_engine* engine,
-                             struct xdma_transfer* transfer,
-                             u32* pdesc_completed)
+                             u32 const pdesc_completed)
 {
-  BUG_ON(!engine);
-  BUG_ON(!pdesc_completed);
+  struct xdma_transfer* transfer = NULL;
 
-  if (unlikely(!transfer)) {
-    pr_info(
-      "%s xfer empty, pdesc completed %u.\n", engine->name, *pdesc_completed);
-    return NULL;
-  }
+  BUG_ON(!engine);
 
   /*
    * iterate over all the transfers completed by the engine,
    * except for the last (i.e. use > instead of >=).
    */
-  while (transfer && (!transfer->cyclic) &&
-         (*pdesc_completed > transfer->desc_num)) {
+  while (!list_empty(&engine->transfer_list) && ((transfer = list_entry(engine->transfer_list.next, struct xdma_transfer, entry))) && (!transfer->cyclic) &&
+         (pdesc_completed > engine->desc_dequeued + transfer->desc_num)) {
     /* remove this transfer from pdesc_completed */
-    *pdesc_completed -= transfer->desc_num;
+    engine->desc_dequeued += transfer->desc_num;
     dbg_tfr("%s engine completed non-cyclic xfer 0x%p (%d desc)\n",
             engine->name,
             transfer,
@@ -805,19 +799,7 @@ engine_service_transfer_list(struct xdma_engine* engine,
 
     /* remove completed transfer from list */
     list_del(engine->transfer_list.next);
-
-    /* if exists, get the next transfer on the list */
-    if (!list_empty(&engine->transfer_list)) {
-      transfer =
-        list_entry(engine->transfer_list.next, struct xdma_transfer, entry);
-      dbg_tfr("Non-completed transfer %p\n", transfer);
-    } else {
-      /* no further transfers? */
-      transfer = NULL;
-    }
   }
-
-  return transfer;
 }
 
 static void
@@ -852,19 +834,20 @@ engine_err_handle(struct xdma_engine* engine,
   xdma_engine_stop(engine);
 }
 
-struct xdma_transfer*
+void
 engine_service_final_transfer(struct xdma_engine* engine,
-                              struct xdma_transfer* transfer,
-                              u32* pdesc_completed)
+                              u32 const pdesc_completed)
 {
+  struct xdma_transfer* transfer = NULL;
+
   BUG_ON(!engine);
-  BUG_ON(!pdesc_completed);
+
+  transfer = list_entry(engine->transfer_list.next, struct xdma_transfer, entry);
 
   /* inspect the current transfer */
   if (unlikely(!transfer)) {
     pr_info(
-      "%s xfer empty, pdesc completed %u.\n", engine->name, *pdesc_completed);
-    return NULL;
+      "%s xfer empty, pdesc completed %u.\n", engine->name, pdesc_completed);
   } else {
     if (((engine->dir == DMA_FROM_DEVICE) &&
          (engine->status & XDMA_STAT_C2H_ERR_MASK)) ||
@@ -872,7 +855,7 @@ engine_service_final_transfer(struct xdma_engine* engine,
          (engine->status & XDMA_STAT_H2C_ERR_MASK))) {
       pr_info("engine %s, status error 0x%x.\n", engine->name, engine->status);
       engine_status_dump(engine);
-      engine_err_handle(engine, transfer, *pdesc_completed);
+      engine_err_handle(engine, transfer, pdesc_completed);
       goto transfer_del;
     }
 
@@ -880,18 +863,18 @@ engine_service_final_transfer(struct xdma_engine* engine,
       pr_debug("engine %s is unexpectedly busy - ignoring\n", engine->name);
 
     /* the engine stopped on current transfer? */
-    if (*pdesc_completed < transfer->desc_num) {
+    if (pdesc_completed < transfer->desc_num) {
       transfer->state = TRANSFER_STATE_FAILED;
       pr_info("%s, xfer 0x%p, stopped half-way, %u/%u.\n",
               engine->name,
               transfer,
-              *pdesc_completed,
+              pdesc_completed,
               transfer->desc_num);
     } else {
       dbg_tfr("engine %s completed transfer\n", engine->name);
       dbg_tfr("Completed transfer ID = 0x%p\n", transfer);
-      dbg_tfr("*pdesc_completed=%d, transfer->desc_num=%d",
-              *pdesc_completed,
+      dbg_tfr("pdesc_completed=%d, transfer->desc_num=%d",
+              pdesc_completed,
               transfer->desc_num);
 
       if (!transfer->cyclic) {
@@ -899,7 +882,7 @@ engine_service_final_transfer(struct xdma_engine* engine,
          * if the engine stopped on this transfer,
          * it should be the last
          */
-        WARN_ON(*pdesc_completed > transfer->desc_num);
+        WARN_ON(pdesc_completed > transfer->desc_num);
       }
       /* mark transfer as succesfully completed */
       transfer->state = TRANSFER_STATE_COMPLETED;
@@ -917,8 +900,6 @@ engine_service_final_transfer(struct xdma_engine* engine,
     /* remove completed transfer from list */
     list_del(engine->transfer_list.next);
   }
-
-  return transfer;
 }
 
 static void
@@ -1209,13 +1190,13 @@ engine_service(struct xdma_engine* engine, int desc_writeback)
   desc_count -= engine->desc_dequeued;
 
   /* Process all but the last transfer */
-  transfer = engine_service_transfer_list(engine, transfer, &desc_count);
+  engine_service_transfer_list(engine, desc_count);
 
   /*
    * Process final transfer - includes checks of number of descriptors to
    * detect faulty completion
    */
-  transfer = engine_service_final_transfer(engine, transfer, &desc_count);
+  engine_service_final_transfer(engine, desc_count);
 
   /* Before starting engine again, clear the writeback data */
   if (poll_mode) {
