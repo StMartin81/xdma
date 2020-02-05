@@ -1365,7 +1365,7 @@ user_irq_service(int irq, struct xdma_user_irq* user_irq)
   if (user_irq->handler)
     return user_irq->handler(user_irq->user_idx, user_irq->dev);
   else
-    dbg_irq("No handler for user IRQ found");
+    dbg_irq("No handler for user IRQ (%d) found", irq);
 
   spin_lock_irqsave(&(user_irq->events_lock), flags);
   if (!user_irq->events_irq) {
