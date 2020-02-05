@@ -3128,7 +3128,7 @@ xdma_init_request(struct sg_table* sgt, u64 ep_addr)
     unsigned int len = sg_dma_len(sg);
 
     if (unlikely(len > desc_blen_max))
-      extra += (len + desc_blen_max - 1) / desc_blen_max;
+      extra += (len - 1) / desc_blen_max;
   }
 
   // pr_info("ep 0x%llx, desc %u+%u.\n", ep_addr, max, extra);
