@@ -1397,7 +1397,7 @@ xdma_isr(int irq, void* dev_id)
   if (user_irq) {
     int user = 0;
     u32 mask = 1;
-    u32 max = xdev->h2c_channel_max;
+    u32 max = xdev->user_max;
 
     /*
      * disable all user interrupts that fired; re-enable the interrupts in the
