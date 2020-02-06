@@ -1465,24 +1465,14 @@ static irqreturn_t
 xdma_user_irq(int irq, void* dev_id)
 {
   struct xdma_user_irq* user_irq;
-  struct xdma_dev* xdev;
-  struct interrupt_regs* irq_regs;
-  void* base_address;
 
   dbg_irq("(irq=%d) <<<< INTERRUPT SERVICE ROUTINE\n", irq);
 
   BUG_ON(!dev_id);
   user_irq = (struct xdma_user_irq*)dev_id;
-  xdev = user_irq->xdev;
-
-  base_address = xdev->bar[xdev->config_bar_idx];
-
-  irq_regs = (struct interrupt_regs*)(base_address + XDMA_OFS_INT_CTRL);
 
   /* Disable this user interrupt */
-  write_register(0x1 << user_irq->user_idx,
-                 base_address,
-                 (size_t)&irq_regs->user_int_enable_w1c - (size_t)base_address);
+  user_interrupts_disable(user_irq->xdev, 0x1 << user_irq->user_idx);
 
   return user_irq_service(irq, dev_id);
 }
