@@ -612,7 +612,7 @@ __write_register(const char* fn, u32 value, void* iomem, size_t off);
 #define write_register(v, mem, off)                                            \
   __write_register(__func__, (v), (mem), (off))
 #else
-#define write_register(v, mem, off) iowrite32(v, (mem + off))
+#define write_register(v, mem, off) writel(v, (mem + off))
 #endif
 u32
 read_register(void* iomem);

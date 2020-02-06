@@ -47,7 +47,7 @@ char_ctrl_read(struct file* fp, char __user* buf, size_t count, loff_t* pos)
   /* first address is BAR base plus file position offset */
   reg = xdev->bar[xcdev->bar] + *pos;
   // w = read_register(reg);
-  w = ioread32(reg);
+  w = readl(reg);
   dbg_sg("char_ctrl_read(@%p, count=%ld, pos=%d) value = 0x%08x\n",
          reg,
          (long)count,
@@ -94,7 +94,7 @@ char_ctrl_write(struct file* file,
          reg,
          (long)count,
          (int)*pos);
-  iowrite32(w, reg);
+  writel(w, reg);
   *pos += 4;
   return 4;
 }

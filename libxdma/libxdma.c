@@ -175,14 +175,14 @@ inline void
 __write_register(const char* fn, u32 value, void* iomem, size_t off)
 {
   pr_err("%s: w reg 0x%lx(0x%p), 0x%x.\n", fn, (size_t)off, iomem, value);
-  iowrite32(value, iomem + off);
+  writel(value, iomem + off);
 }
 #endif
 
 inline u32
 read_register(void* iomem)
 {
-  return ioread32(iomem);
+  return readl(iomem);
 }
 
 static inline u32
@@ -311,11 +311,11 @@ read_interrupts(struct xdma_dev* xdev)
 
   /* extra debugging; inspect complete engine set of registers */
   hi = read_register(&reg->user_int_request);
-  dbg_io("ioread32(0x%p) returned 0x%08x (user_int_request).\n",
+  dbg_io("readl(0x%p) returned 0x%08x (user_int_request).\n",
          &reg->user_int_request,
          hi);
   lo = read_register(&reg->channel_int_request);
-  dbg_io("ioread32(0x%p) returned 0x%08x (channel_int_request)\n",
+  dbg_io("readl(0x%p) returned 0x%08x (channel_int_request)\n",
          &reg->channel_int_request,
          lo);
 
@@ -383,7 +383,7 @@ engine_reg_dump(struct xdma_engine* engine)
   BUG_ON(!engine);
 
   w = read_register(&engine->regs->identifier);
-  pr_info("%s: ioread32(0x%p) = 0x%08x (id).\n",
+  pr_info("%s: readl(0x%p) = 0x%08x (id).\n",
           engine->name,
           &engine->regs->identifier,
           w);
@@ -398,37 +398,37 @@ engine_reg_dump(struct xdma_engine* engine)
   }
   /* extra debugging; inspect complete engine set of registers */
   w = read_register(&engine->regs->status);
-  pr_info("%s: ioread32(0x%p) = 0x%08x (status).\n",
+  pr_info("%s: readl(0x%p) = 0x%08x (status).\n",
           engine->name,
           &engine->regs->status,
           w);
   w = read_register(&engine->regs->control);
-  pr_info("%s: ioread32(0x%p) = 0x%08x (control)\n",
+  pr_info("%s: readl(0x%p) = 0x%08x (control)\n",
           engine->name,
           &engine->regs->control,
           w);
   w = read_register(&engine->sgdma_regs->first_desc_lo);
-  pr_info("%s: ioread32(0x%p) = 0x%08x (first_desc_lo)\n",
+  pr_info("%s: readl(0x%p) = 0x%08x (first_desc_lo)\n",
           engine->name,
           &engine->sgdma_regs->first_desc_lo,
           w);
   w = read_register(&engine->sgdma_regs->first_desc_hi);
-  pr_info("%s: ioread32(0x%p) = 0x%08x (first_desc_hi)\n",
+  pr_info("%s: readl(0x%p) = 0x%08x (first_desc_hi)\n",
           engine->name,
           &engine->sgdma_regs->first_desc_hi,
           w);
   w = read_register(&engine->sgdma_regs->first_desc_adjacent);
-  pr_info("%s: ioread32(0x%p) = 0x%08x (first_desc_adjacent).\n",
+  pr_info("%s: readl(0x%p) = 0x%08x (first_desc_adjacent).\n",
           engine->name,
           &engine->sgdma_regs->first_desc_adjacent,
           w);
   w = read_register(&engine->regs->completed_desc_count);
-  pr_info("%s: ioread32(0x%p) = 0x%08x (completed_desc_count).\n",
+  pr_info("%s: readl(0x%p) = 0x%08x (completed_desc_count).\n",
           engine->name,
           &engine->regs->completed_desc_count,
           w);
   w = read_register(&engine->regs->interrupt_enable_mask);
-  pr_info("%s: ioread32(0x%p) = 0x%08x (interrupt_enable_mask)\n",
+  pr_info("%s: readl(0x%p) = 0x%08x (interrupt_enable_mask)\n",
           engine->name,
           &engine->regs->interrupt_enable_mask,
           w);
@@ -650,7 +650,7 @@ engine_start_mode_config(struct xdma_engine* engine)
     w |= (u32)XDMA_CTRL_NON_INCR_ADDR;
 
   dbg_tfr(
-    "iowrite32(0x%08x to 0x%p) (control)\n", w, (void*)&engine->regs->control);
+    "writel(0x%08x to 0x%p) (control)\n", w, (void*)&engine->regs->control);
   /* start the engine */
   write_register(
     w, base_address, (size_t)&engine->regs->control - (size_t)base_address);
@@ -704,7 +704,7 @@ engine_start(struct xdma_engine* engine)
 
   /* write lower 32-bit of bus address of transfer first descriptor */
   w = cpu_to_le32(PCI_DMA_L(transfer->desc_bus));
-  dbg_tfr("iowrite32(0x%08x to 0x%p) (first_desc_lo)\n",
+  dbg_tfr("writel(0x%08x to 0x%p) (first_desc_lo)\n",
           w,
           (void*)&engine->sgdma_regs->first_desc_lo);
   write_register(w,
@@ -713,7 +713,7 @@ engine_start(struct xdma_engine* engine)
                    (size_t)base_address);
   /* write upper 32-bit of bus address of transfer first descriptor */
   w = cpu_to_le32(PCI_DMA_H(transfer->desc_bus));
-  dbg_tfr("iowrite32(0x%08x to 0x%p) (first_desc_hi)\n",
+  dbg_tfr("writel(0x%08x to 0x%p) (first_desc_hi)\n",
           w,
           (void*)&engine->sgdma_regs->first_desc_hi);
   write_register(w,
@@ -726,7 +726,7 @@ engine_start(struct xdma_engine* engine)
     if (extra_adj > MAX_EXTRA_ADJ)
       extra_adj = MAX_EXTRA_ADJ;
   }
-  dbg_tfr("iowrite32(0x%08x to 0x%p) (first_desc_adjacent)\n",
+  dbg_tfr("writel(0x%08x to 0x%p) (first_desc_adjacent)\n",
           extra_adj,
           (void*)&engine->sgdma_regs->first_desc_adjacent);
   write_register(extra_adj,
@@ -2168,13 +2168,13 @@ print_msix_table(struct pci_dev* dev)
     if (desc_addr) {
       table_entry = (struct msix_vec_table_entry*)desc_addr;
       dbg_init("MSI-X Vector Table for IRQ %u (0x%p)\n", entry->irq, desc_addr);
-      data = ioread32(&table_entry->msix_vec_addr_lo);
+      data = readl(&table_entry->msix_vec_addr_lo);
       dbg_init("MSI-X lower address: 0x%x", data);
-      data = ioread32(&table_entry->msix_vec_addr_hi);
+      data = readl(&table_entry->msix_vec_addr_hi);
       dbg_init("MSI-X higher address: 0x%x", data);
-      data = ioread32(&table_entry->msix_vec_data);
+      data = readl(&table_entry->msix_vec_data);
       dbg_init("MSI-X message data: 0x%x", data);
-      data = ioread32(&table_entry->msix_vec_control);
+      data = readl(&table_entry->msix_vec_control);
       dbg_init("MSI-X control: 0x%x", data);
     }
   }
