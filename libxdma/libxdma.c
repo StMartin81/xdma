@@ -296,7 +296,6 @@ user_interrupts_disable(struct xdma_dev* xdev, u32 mask)
   write_register(mask,
                  base_address,
                  (size_t)&irq_regs->user_int_enable_w1c - (size_t)base_address);
-  wmb();
 }
 
 /* read_interrupts -- Print the interrupt controller status */
@@ -597,7 +596,6 @@ xdma_engine_stop(struct xdma_engine* engine)
           (u32*)&engine->regs->control);
   write_register(
     w, base_address, (size_t)&engine->regs->control - (size_t)base_address);
-  wmb();
   dbg_tfr("xdma_engine_stop(%s) done\n", engine->name);
 }
 
@@ -654,9 +652,6 @@ engine_start_mode_config(struct xdma_engine* engine)
   /* start the engine */
   write_register(
     w, base_address, (size_t)&engine->regs->control - (size_t)base_address);
-
-  dbg_tfr("mb(): Make sure registers are written.\n");
-  mb();
 }
 
 /**
@@ -733,9 +728,6 @@ engine_start(struct xdma_engine* engine)
                  base_address,
                  (size_t)&engine->sgdma_regs->first_desc_adjacent -
                    (size_t)base_address);
-
-  dbg_tfr("wmb(): Make sure registers are written.\n");
-  wmb();
 
   engine_start_mode_config(engine);
 
@@ -1491,7 +1483,6 @@ xdma_user_irq(int irq, void* dev_id)
   write_register(0x1 << user_irq->user_idx,
                  base_address,
                  (size_t)&irq_regs->user_int_enable_w1c - (size_t)base_address);
-  wmb();
 
   return user_irq_service(irq, dev_id);
 }
@@ -1530,7 +1521,6 @@ xdma_channel_irq(int irq, void* dev_id)
                  base_address,
                  (size_t)&engine->regs->interrupt_enable_mask_w1c -
                    (size_t)base_address);
-  wmb();
   /* Schedule the bottom half */
   schedule_work(&engine->work);
 
