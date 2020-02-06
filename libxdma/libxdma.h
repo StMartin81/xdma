@@ -51,7 +51,7 @@
 /* Use this definition to poll several times between calls to schedule */
 #define NUM_POLLS_PER_SCHED 100
 
-#define XDMA_CHANNEL_NUM_MAX (4)
+#define XDMA_CHANNEL_NUM_MAX (4u)
 /*
  * interrupts per engine, rad2_vul.sv:237
  * .REG_IRQ_OUT	(reg_irq_from_ch[(channel*2) +: 2]),
@@ -532,9 +532,9 @@ struct xdma_dev
   int regions_in_use;              /* flag if dev was in use during probe() */
   int got_regions;                 /* flag if probe() obtained the regions */
 
-  int user_max;
-  int c2h_channel_max;
-  int h2c_channel_max;
+  u8 user_max;
+  u8 c2h_channel_max;
+  u8 h2c_channel_max;
 
   /* Interrupt management */
   int irq_count;    /* interrupt counter */

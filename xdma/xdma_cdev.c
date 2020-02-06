@@ -354,7 +354,7 @@ unregister_region:
 void
 xpdev_destroy_interfaces(struct xdma_pci_dev* xpdev)
 {
-  int i;
+  u32 i;
 
 #ifdef __XDMA_SYSFS__
   device_remove_file(&xpdev->pdev->dev, &dev_attr_xdma_dev_instance);
@@ -404,7 +404,7 @@ xpdev_create_interfaces(struct xdma_pci_dev* xpdev)
 {
   struct xdma_dev* xdev = xpdev->xdev;
   struct xdma_engine* engine;
-  int i;
+  u8 i;
   int rv = 0;
 
   /* initialize control character device */

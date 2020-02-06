@@ -1397,7 +1397,7 @@ xdma_isr(int irq, void* dev_id)
   if (user_irq) {
     int user = 0;
     u32 mask = 1;
-    int max = xdev->h2c_channel_max;
+    u32 max = xdev->h2c_channel_max;
 
     /*
      * disable all user interrupts that fired; re-enable the interrupts in the
@@ -1418,8 +1418,8 @@ xdma_isr(int irq, void* dev_id)
 
   mask = ch_irq & xdev->mask_irq_h2c;
   if (mask) {
-    int channel = 0;
-    int max = xdev->h2c_channel_max;
+    u32 channel = 0;
+    u32 max = xdev->h2c_channel_max;
 
     /* iterate over H2C (PCIe read) */
     for (channel = 0; channel < max && mask; channel++) {
@@ -1787,7 +1787,7 @@ static void
 try_enable_msi_msix(struct xdma_dev* xdev, struct pci_dev* pdev)
 {
   int ret = 0;
-  int req_nvec;
+  u32 req_nvec;
 
   BUG_ON(!xdev);
   BUG_ON(!pdev);
@@ -3612,10 +3612,10 @@ remove_engines(struct xdma_dev* xdev)
 static int
 probe_for_engine(struct xdma_dev* xdev,
                  enum dma_data_direction dir,
-                 int channel)
+                 u32 channel)
 {
   struct engine_regs* regs;
-  int offset = channel * CHANNEL_SPACING;
+  u32 offset = channel * CHANNEL_SPACING;
   u32 engine_id;
   u32 engine_id_expected;
   u32 channel_id;
@@ -3673,7 +3673,7 @@ probe_for_engine(struct xdma_dev* xdev,
 static int
 probe_engines(struct xdma_dev* xdev)
 {
-  int i;
+  u32 i;
   int rv = 0;
 
   BUG_ON(!xdev);
@@ -3705,9 +3705,9 @@ pci_enable_capability(struct pci_dev* pdev, int cap)
 void*
 xdma_device_open(const char* mname,
                  struct pci_dev* pdev,
-                 int* user_max,
-                 int* h2c_channel_max,
-                 int* c2h_channel_max)
+                 u32* user_max,
+                 u32* h2c_channel_max,
+                 u32* c2h_channel_max)
 {
   struct xdma_dev* xdev = NULL;
   int rv = 0;
@@ -3728,7 +3728,7 @@ xdma_device_open(const char* mname,
 
   if (xdev->user_max == 0 || xdev->user_max > MAX_USER_IRQ)
     xdev->user_max = MAX_USER_IRQ;
-  if (xdev->h2c_channel_max == 0 ||
+  if (xdev->h2c_channel_max == 0u ||
       xdev->h2c_channel_max > XDMA_CHANNEL_NUM_MAX)
     xdev->h2c_channel_max = XDMA_CHANNEL_NUM_MAX;
   if (xdev->c2h_channel_max == 0 ||
@@ -3871,7 +3871,7 @@ xdma_device_offline(struct pci_dev* pdev, void* dev_hndl)
 {
   struct xdma_dev* xdev = (struct xdma_dev*)dev_hndl;
   struct xdma_engine* engine;
-  int i;
+  u32 i;
 
   if (!dev_hndl)
     return;
@@ -3928,7 +3928,7 @@ xdma_device_online(struct pci_dev* pdev, void* dev_hndl)
   struct xdma_dev* xdev = (struct xdma_dev*)dev_hndl;
   struct xdma_engine* engine;
   unsigned long flags;
-  int i;
+  u32 i;
 
   if (!dev_hndl)
     return;

@@ -68,9 +68,9 @@ struct xdma_dev;
 void*
 xdma_device_open(const char* mod_name,
                  struct pci_dev* pdev,
-                 int* user_max,
-                 int* h2c_channel_max,
-                 int* c2h_channel_max);
+                 u32* user_max,
+                 u32* h2c_channel_max,
+                 u32* c2h_channel_max);
 
 /*
  * xdma_device_close - prepare fpga for removal: disable all interrupts (users

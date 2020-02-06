@@ -75,9 +75,9 @@ struct xdma_pci_dev
   struct xdma_dev* xdev;
   int major;           /* major number */
   int instance;        /* instance number */
-  int user_max;        /* maximum number of user IRQs */
-  int c2h_channel_max; /* maximum number of card to host channels */
-  int h2c_channel_max; /* maximum number of host to card channels */
+  u32 user_max;        /* maximum number of user IRQs */
+  u32 c2h_channel_max; /* maximum number of card to host channels */
+  u32 h2c_channel_max; /* maximum number of host to card channels */
 
   unsigned int flags;
   /* character device structures */
