@@ -2980,7 +2980,7 @@ transfer_init(struct xdma_engine* engine, struct xdma_request_cb* req)
   u32 desc_max = min_t(
     u32, req->sw_desc_cnt - req->sw_desc_idx, XDMA_TRANSFER_MAX_DESC);
   u32 i = 0;
-  u32 last = 0;
+  u32 last = desc_max - 1;
   u32 control;
 
   memset(xfer, 0, sizeof(*xfer));
@@ -3000,12 +3000,11 @@ transfer_init(struct xdma_engine* engine, struct xdma_request_cb* req)
 
   transfer_build(engine, req, desc_max);
 
-  last = desc_max - 1;
   /* stop engine, EOP for AXI ST, req IRQ on last descriptor */
   control = XDMA_DESC_STOPPED;
   control |= XDMA_DESC_EOP;
   control |= XDMA_DESC_COMPLETED;
-  xdma_desc_control_set(xfer->desc_virt + last, control);
+  xdma_desc_control_set(&(xfer->desc_virt[last]), control);
 
   xfer->desc_num = xfer->desc_adjacent = desc_max;
 
