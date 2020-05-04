@@ -402,7 +402,6 @@ struct xdma_transfer
   struct list_head entry;      /* queue of non-completed transfers */
   struct xdma_desc* desc_virt; /* virt addr of the 1st descriptor */
   dma_addr_t desc_bus;         /* bus addr of the first descriptor */
-  u32 desc_adjacent;           /* adjacent descriptors at desc_bus */
   u32 desc_num;                /* number of descriptors in transfer */
   enum dma_data_direction dir;
   struct completion completion;

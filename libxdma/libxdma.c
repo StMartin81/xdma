@@ -716,8 +716,8 @@ engine_start(struct xdma_engine* engine)
                  (size_t)&engine->sgdma_regs->first_desc_hi -
                    (size_t)base_address);
 
-  if (transfer->desc_adjacent > 0) {
-    extra_adj = transfer->desc_adjacent - 1;
+  if (transfer->desc_num > 0) {
+    extra_adj = transfer->desc_num - 1;
     if (extra_adj > MAX_EXTRA_ADJ)
       extra_adj = MAX_EXTRA_ADJ;
   }
@@ -2232,11 +2232,10 @@ transfer_dump(struct xdma_transfer* transfer)
           transfer->len,
           transfer->last_in_request);
 
-  pr_info("transfer 0x%p, desc %u, bus 0x%llx, adj %u.\n",
+  pr_info("transfer 0x%p, desc %u, bus 0x%llx.\n",
           transfer,
           transfer->desc_num,
-          (u64)transfer->desc_bus,
-          transfer->desc_adjacent);
+          (u64)transfer->desc_bus);
   for (i = 0; i < transfer->desc_num; i += 1)
     dump_desc(desc_virt + i);
 }
@@ -3006,7 +3005,7 @@ transfer_init(struct xdma_engine* engine, struct xdma_request_cb* req)
   control |= XDMA_DESC_COMPLETED;
   xdma_desc_control_set(&(xfer->desc_virt[last]), control);
 
-  xfer->desc_num = xfer->desc_adjacent = desc_max;
+  xfer->desc_num = desc_max;
 
   dbg_sg("transfer 0x%p has %u descriptors\n", xfer, xfer->desc_num);
   /* fill in adjacent numbers */
