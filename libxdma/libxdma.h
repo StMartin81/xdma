@@ -57,7 +57,7 @@
  * .REG_IRQ_OUT	(reg_irq_from_ch[(channel*2) +: 2]),
  */
 #define XDMA_ENG_IRQ_NUM (1)
-#define MAX_EXTRA_ADJ (15)
+#define MAX_EXTRA_ADJ (0x3f)
 #define RX_STATUS_EOP (1)
 
 /* Target internal components on XDMA control BAR */
