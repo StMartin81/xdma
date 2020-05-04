@@ -3000,9 +3000,7 @@ transfer_init(struct xdma_engine* engine, struct xdma_request_cb* req)
 
   transfer_build(engine, req, desc_max);
 
-  /* terminate last descriptor */
   last = desc_max - 1;
-  xdma_desc_link(xfer->desc_virt + last, 0, 0);
   /* stop engine, EOP for AXI ST, req IRQ on last descriptor */
   control = XDMA_DESC_STOPPED;
   control |= XDMA_DESC_EOP;
