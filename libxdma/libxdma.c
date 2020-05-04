@@ -3011,7 +3011,7 @@ transfer_init(struct xdma_engine* engine, struct xdma_request_cb* req)
   dbg_sg("transfer 0x%p has %u descriptors\n", xfer, xfer->desc_num);
   /* fill in adjacent numbers */
   for (i = 0; i < xfer->desc_num; i++)
-    xdma_desc_adjacent(xfer->desc_virt + i, xfer->desc_num - i - 1u);
+    xdma_desc_adjacent(&(xfer->desc_virt[i]), xfer->desc_num - i - 1u);
 
   return 0;
 }
