@@ -647,6 +647,9 @@ engine_start_mode_config(struct xdma_engine* engine)
   if (engine->non_incr_addr)
     w |= (u32)XDMA_CTRL_NON_INCR_ADDR;
 
+  /* make sure descriptors are written to memory */
+  wmb();
+
   dbg_tfr(
     "writel(0x%08x to 0x%p) (control)\n", w, (void*)&engine->regs->control);
   /* start the engine */
