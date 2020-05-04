@@ -25,7 +25,7 @@ dkms build -m xdma -v 2018.3.50
 dkms install -m xdma -v 2018.3.50
 ```
 
-The driver can then be remove with the following commands:
+The driver can then be removed with the following commands:
 ```
 dkms remove -m xdma/2018.3.50 --all
 ```
