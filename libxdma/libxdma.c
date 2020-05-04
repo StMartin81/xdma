@@ -2359,7 +2359,7 @@ xdma_desc_adjacent(struct xdma_desc* desc, u32 next_adjacent)
     if (extra_adj > MAX_EXTRA_ADJ) {
       extra_adj = MAX_EXTRA_ADJ;
     }
-    max_adj_4k = (0x1000u - ((le32_to_cpu(desc->next_lo)) & 0xFFFu)) / 32u - 1u;
+    max_adj_4k = (0x1000u - ((le32_to_cpu(desc->next_lo)) & 0xFFFu)) / sizeof(struct xdma_desc) - 1u;
     if (extra_adj > max_adj_4k) {
       extra_adj = max_adj_4k;
     }
