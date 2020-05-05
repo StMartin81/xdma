@@ -719,11 +719,8 @@ engine_start(struct xdma_engine* engine)
                  (size_t)&engine->sgdma_regs->first_desc_hi -
                    (size_t)base_address);
 
-  if (transfer->desc_num > 0) {
-    extra_adj = transfer->desc_num - 1;
-    if (extra_adj > MAX_EXTRA_ADJ)
-      extra_adj = MAX_EXTRA_ADJ;
-  }
+  extra_adj = (transfer->desc_virt[0].control & 0x00003f00) >> 8;
+
   dbg_tfr("writel(0x%08x to 0x%p) (first_desc_adjacent)\n",
           extra_adj,
           (void*)&engine->sgdma_regs->first_desc_adjacent);
