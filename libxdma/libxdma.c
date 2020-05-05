@@ -731,7 +731,7 @@ engine_start(struct xdma_engine* engine)
 
   engine_start_mode_config(engine);
 
-  engine_status_read(engine, 0, 0);
+  engine_status_read(engine, 1, 0);
 
   dbg_tfr("%s engine 0x%p now running\n", engine->name, engine);
   /* remember the engine is running */
