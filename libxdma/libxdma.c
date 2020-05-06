@@ -2877,8 +2877,7 @@ engine_init(struct xdma_engine* engine,
   engine->channel = channel;
 
   /* engine interrupt request bit */
-  engine->irq_bitmask = (1 << XDMA_ENG_IRQ_NUM) - 1;
-  engine->irq_bitmask <<= (xdev->engines_num * XDMA_ENG_IRQ_NUM);
+  engine->irq_bitmask = (u32)1u << xdev->engines_num;
   engine->bypass_offset = xdev->engines_num * BYPASS_MODE_SPACING;
 
   /* parent */
