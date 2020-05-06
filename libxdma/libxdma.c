@@ -1452,7 +1452,6 @@ xdma_isr(int irq, void* dev_id)
     }
   }
 
-  xdev->irq_count++;
   return IRQ_HANDLED;
 }
 
@@ -1514,11 +1513,6 @@ xdma_channel_irq(int irq, void* dev_id)
   /* Schedule the bottom half */
   schedule_work(&engine->work);
 
-  /*
-   * RTO - need to protect access here if multiple MSI-X are used for
-   * user interrupts
-   */
-  xdev->irq_count++;
   return IRQ_HANDLED;
 }
 
