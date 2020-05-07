@@ -1225,13 +1225,7 @@ engine_service_work(struct work_struct* work)
   base_address = get_config_bar_address(engine);
 
   /* re-enable interrupts for this engine */
-  if (engine->xdev->msix_enabled) {
-    write_register(engine->interrupt_enable_mask_value,
-                   base_address,
-                   (size_t)&engine->regs->interrupt_enable_mask_w1s -
-                     (size_t)base_address);
-  } else
-    channel_interrupts_enable(engine->xdev, engine->irq_bitmask);
+  channel_interrupts_enable(engine->xdev, engine->irq_bitmask);
 
   /* unlock the engine */
   spin_unlock_irqrestore(&engine->lock, flags);
@@ -1488,12 +1482,16 @@ xdma_channel_irq(int irq, void* dev_id)
   struct xdma_engine* engine;
   struct interrupt_regs* irq_regs;
   void* base_address;
+  u32 ch_irq;
 
   dbg_irq("(irq=%d) <<<< INTERRUPT service ROUTINE\n", irq);
   BUG_ON(!dev_id);
 
   engine = (struct xdma_engine*)dev_id;
   xdev = engine->xdev;
+
+  irq_regs = (struct interrupt_regs*)(xdev->bar[xdev->config_bar_idx] +
+                               XDMA_OFS_INT_CTRL);
 
   if (!xdev) {
     WARN_ON(!xdev);
@@ -1503,13 +1501,16 @@ xdma_channel_irq(int irq, void* dev_id)
 
   base_address = get_config_bar_address(engine);
 
-  irq_regs = (struct interrupt_regs*)(base_address + XDMA_OFS_INT_CTRL);
+  ch_irq = read_register(&irq_regs->channel_int_request);
+  dbg_irq("ch_irq = 0x%08x\n", ch_irq);
 
-  /* Disable the interrupt for this engine */
-  write_register(engine->interrupt_enable_mask_value,
-                 base_address,
-                 (size_t)&engine->regs->interrupt_enable_mask_w1c -
-                   (size_t)base_address);
+  /*
+   * disable all interrupts that fired; these are re-enabled individually
+   * after the causing module has been fully serviced.
+   */
+  if (ch_irq)
+    channel_interrupts_disable(xdev, ch_irq);
+
   /* Schedule the bottom half */
   schedule_work(&engine->work);
 
