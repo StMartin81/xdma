@@ -4585,9 +4585,10 @@ xdma_cyclic_transfer_teardown(struct xdma_engine* engine)
   struct xdma_transfer* transfer;
   unsigned long flags;
 
+  spin_lock_irqsave(&engine->lock, flags);
+
   transfer = engine_cyclic_stop(engine);
 
-  spin_lock_irqsave(&engine->lock, flags);
   if (transfer) {
     dbg_tfr("%s: stop transfer 0x%p.\n", engine->name, transfer);
     if (transfer != &engine->cyclic_req->xfer) {
