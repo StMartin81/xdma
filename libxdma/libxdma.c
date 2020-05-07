@@ -3293,7 +3293,6 @@ xdma_xfer_submit(struct xdma_dev* xdev,
                 req->ep_addr);
         spin_lock_irqsave(&engine->lock, flags);
         engine_status_read(engine, 0, 1);
-        // engine_status_dump(engine);
         transfer_abort(engine, xfer);
 
         xdma_engine_stop(engine);
