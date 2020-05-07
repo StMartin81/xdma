@@ -3250,11 +3250,8 @@ xdma_xfer_submit(struct xdma_dev* xdev,
      * engine to determine the writeback value expected
      */
     if (poll_mode) {
-      u32 desc_count;
+      u32 desc_count = xfer->desc_num;
 
-      spin_lock_irqsave(&engine->lock, flags);
-      desc_count = xfer->desc_num;
-      spin_unlock_irqrestore(&engine->lock, flags);
       dbg_tfr("%s poll desc_count=%d\n", engine->name, desc_count);
       engine_service_poll(engine, desc_count);
 
