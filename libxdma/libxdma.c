@@ -3268,12 +3268,8 @@ xdma_xfer_submit(struct xdma_dev* xdev,
       }
     }
 
-    spin_lock_irqsave(&engine->lock, flags);
-
     switch (xfer->state) {
       case TRANSFER_STATE_COMPLETED:
-        spin_unlock_irqrestore(&engine->lock, flags);
-
         dbg_tfr("transfer %p, %u, ep 0x%llx compl, +%lu.\n",
                 xfer,
                 xfer->len,
@@ -3286,7 +3282,6 @@ xdma_xfer_submit(struct xdma_dev* xdev,
                 xfer,
                 xfer->len,
                 req->ep_addr - xfer->len);
-        spin_unlock_irqrestore(&engine->lock, flags);
 
 #ifdef __LIBXDMA_DEBUG__
         transfer_dump(xfer);
@@ -3301,6 +3296,7 @@ xdma_xfer_submit(struct xdma_dev* xdev,
                 xfer->len,
                 xfer->state,
                 req->ep_addr);
+        spin_lock_irqsave(&engine->lock, flags);
         engine_status_read(engine, 0, 1);
         // engine_status_dump(engine);
         transfer_abort(engine, xfer);
