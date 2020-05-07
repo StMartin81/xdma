@@ -1480,9 +1480,6 @@ xdma_channel_irq(int irq, void* dev_id)
 {
   struct xdma_dev* xdev;
   struct xdma_engine* engine;
-  struct interrupt_regs* irq_regs;
-  void* base_address;
-  u32 ch_irq;
 
   dbg_irq("(irq=%d) <<<< INTERRUPT service ROUTINE\n", irq);
   BUG_ON(!dev_id);
@@ -1490,26 +1487,13 @@ xdma_channel_irq(int irq, void* dev_id)
   engine = (struct xdma_engine*)dev_id;
   xdev = engine->xdev;
 
-  irq_regs = (struct interrupt_regs*)(xdev->bar[xdev->config_bar_idx] +
-                               XDMA_OFS_INT_CTRL);
-
   if (!xdev) {
     WARN_ON(!xdev);
     dbg_irq("xdma_channel_irq(irq=%d) xdev=%p ??\n", irq, xdev);
     return IRQ_NONE;
   }
 
-  base_address = get_config_bar_address(engine);
-
-  ch_irq = read_register(&irq_regs->channel_int_request);
-  dbg_irq("ch_irq = 0x%08x\n", ch_irq);
-
-  /*
-   * disable all interrupts that fired; these are re-enabled individually
-   * after the causing module has been fully serviced.
-   */
-  if (ch_irq)
-    channel_interrupts_disable(xdev, ch_irq);
+  channel_interrupts_disable(xdev, engine->irq_bitmask);
 
   /* Schedule the bottom half */
   schedule_work(&engine->work);
