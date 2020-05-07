@@ -555,14 +555,13 @@ static inline int
 xdma_device_flag_check(struct xdma_dev* xdev, unsigned int f)
 {
   unsigned long flags;
+  int ret = 0;
 
   spin_lock_irqsave(&xdev->lock, flags);
-  if (xdev->flags & f) {
-    spin_unlock_irqrestore(&xdev->lock, flags);
-    return 1;
-  }
+  if (xdev->flags & f)
+    ret = 1;
   spin_unlock_irqrestore(&xdev->lock, flags);
-  return 0;
+  return ret;
 }
 
 static inline void
