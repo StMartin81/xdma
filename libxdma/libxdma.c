@@ -544,10 +544,10 @@ engine_status_read(struct xdma_engine* engine, bool clear, bool dump)
   else
     value = engine->status = read_register(&engine->regs->status);
 
-  if (value & 0xffffffb8u)
-  {
+  if (value & 0xffffffb8u) {
     pr_err("Channel status: 0x%x\n", value & 0xffffffb8u);
-    /* TODO: Implement error handling in case error was detected: Reset engine? */
+    /* TODO: Implement error handling in case error was detected: Reset engine?
+     */
     BUG_ON(1);
   }
 
@@ -771,7 +771,10 @@ engine_service_transfer_list(struct xdma_engine* engine,
    * iterate over all the transfers completed by the engine,
    * except for the last (i.e. use > instead of >=).
    */
-  while (!list_empty(&engine->transfer_list) && ((transfer = list_entry(engine->transfer_list.next, struct xdma_transfer, entry))) && (!transfer->cyclic) &&
+  while (!list_empty(&engine->transfer_list) &&
+         ((transfer = list_entry(
+             engine->transfer_list.next, struct xdma_transfer, entry))) &&
+         (!transfer->cyclic) &&
          (pdesc_completed > engine->desc_dequeued + transfer->desc_num)) {
     /* remove this transfer from pdesc_completed */
     engine->desc_dequeued += transfer->desc_num;
@@ -834,7 +837,8 @@ engine_service_final_transfer(struct xdma_engine* engine,
 
   BUG_ON(!engine);
 
-  transfer = list_entry(engine->transfer_list.next, struct xdma_transfer, entry);
+  transfer =
+    list_entry(engine->transfer_list.next, struct xdma_transfer, entry);
 
   /* inspect the current transfer */
   if (unlikely(!transfer)) {
@@ -2335,7 +2339,9 @@ xdma_desc_adjacent(struct xdma_desc* desc, u32 next_adjacent)
     if (extra_adj > MAX_EXTRA_ADJ) {
       extra_adj = MAX_EXTRA_ADJ;
     }
-    max_adj_4k = (0x1000u - ((le32_to_cpu(desc->next_lo)) & 0xFFFu)) / sizeof(struct xdma_desc) - 1u;
+    max_adj_4k = (0x1000u - ((le32_to_cpu(desc->next_lo)) & 0xFFFu)) /
+                   sizeof(struct xdma_desc) -
+                 1u;
     if (extra_adj > max_adj_4k) {
       extra_adj = max_adj_4k;
     }
@@ -2934,8 +2940,11 @@ transfer_build(struct xdma_engine* engine,
              req->ep_addr);
 
     /* fill in descriptor entry j with transfer details */
-    xdma_desc_set(
-      &(xfer->desc_virt[i]), sdesc[i].addr, req->ep_addr, sdesc[i].len, xfer->dir);
+    xdma_desc_set(&(xfer->desc_virt[i]),
+                  sdesc[i].addr,
+                  req->ep_addr,
+                  sdesc[i].len,
+                  xfer->dir);
     xfer->len += sdesc[i].len;
 
     /* for non-inc-add mode don't increment ep_addr */
@@ -2950,8 +2959,8 @@ static int
 transfer_init(struct xdma_engine* engine, struct xdma_request_cb* req)
 {
   struct xdma_transfer* xfer = &req->xfer;
-  u32 desc_max = min_t(
-    u32, req->sw_desc_cnt - req->sw_desc_idx, XDMA_TRANSFER_MAX_DESC);
+  u32 desc_max =
+    min_t(u32, req->sw_desc_cnt - req->sw_desc_idx, XDMA_TRANSFER_MAX_DESC);
   u32 i = 0;
   u32 last = desc_max - 1;
   u32 control;
@@ -3254,10 +3263,9 @@ xdma_xfer_submit(struct xdma_dev* xdev,
       engine_service_poll(engine, desc_count);
 
     } else {
-      rv = wait_for_completion_interruptible_timeout(&xfer->completion,
-                                                msecs_to_jiffies(timeout_ms));
-      if (rv < 1)
-      {
+      rv = wait_for_completion_interruptible_timeout(
+        &xfer->completion, msecs_to_jiffies(timeout_ms));
+      if (rv < 1) {
         pr_err("Error while waiting for completion\n");
         goto destroy_transfer;
       }
@@ -3306,9 +3314,9 @@ xdma_xfer_submit(struct xdma_dev* xdev,
         break;
     }
 
-destroy_transfer:
+  destroy_transfer:
     transfer_destroy(xdev, xfer);
-release_desc_lock:
+  release_desc_lock:
     spin_unlock(&engine->desc_lock);
 
     if (rv < 0)

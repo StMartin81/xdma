@@ -410,7 +410,8 @@ struct xdma_transfer
 #define XFER_FLAG_NEED_UNMAP 0x1
   int cyclic;          /* flag if transfer is cyclic */
   int last_in_request; /* flag if last within request */
-  unsigned int len;    /* total number of bytes which are scheduled / were already transferred */
+  unsigned int len; /* total number of bytes which are scheduled / were already
+                       transferred */
   struct sg_table* sgt;
 };
 
@@ -424,7 +425,8 @@ struct xdma_request_cb
 
   u32 sw_desc_idx;
   u32 sw_desc_cnt;
-  struct sw_desc sdesc[0]; /* real array will be allocated in xdma_request_alloc */
+  struct sw_desc
+    sdesc[0]; /* real array will be allocated in xdma_request_alloc */
 };
 
 struct xdma_engine
@@ -448,12 +450,12 @@ struct xdma_engine
   int running;       /* flag if the driver started engine */
   int non_incr_addr; /* flag if non-incremental addressing used */
   int streaming;
-  int addr_align;                  /* source/dest alignment in bytes */
-  int len_granularity;             /* transfer length multiple */
-  int addr_bits;                   /* HW datapath address width */
-  int channel;                     /* engine indices */
-  u32 desc_dequeued;               /* num descriptors of completed transfers */
-  u32 status;                      /* last known status of device */
+  int addr_align;      /* source/dest alignment in bytes */
+  int len_granularity; /* transfer length multiple */
+  int addr_bits;       /* HW datapath address width */
+  int channel;         /* engine indices */
+  u32 desc_dequeued;   /* num descriptors of completed transfers */
+  u32 status;          /* last known status of device */
 
   /* Transfer list management */
   struct list_head transfer_list; /* queue of transfers */
