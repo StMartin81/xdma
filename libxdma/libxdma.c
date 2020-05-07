@@ -2779,8 +2779,6 @@ engine_init_regs(struct xdma_engine* engine)
                  (size_t)&engine->regs->interrupt_enable_mask -
                    (size_t)base_address);
 
-  engine->interrupt_enable_mask_value = reg_value;
-
   /* only enable credit mode for AXI-ST C2H */
   if (enable_credit_mp && engine->streaming && engine->dir == DMA_FROM_DEVICE) {
 
