@@ -3753,9 +3753,6 @@ xdma_device_open(const char* mname,
   if (!poll_mode)
     channel_interrupts_enable(xdev, ~0);
 
-  /* Flush writes */
-  read_interrupts(xdev);
-
   *user_max = xdev->user_max;
   *h2c_channel_max = xdev->h2c_channel_max;
   *c2h_channel_max = xdev->c2h_channel_max;
