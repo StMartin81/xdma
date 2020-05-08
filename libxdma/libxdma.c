@@ -697,9 +697,6 @@ engine_start(struct xdma_engine* engine)
 
   dbg_tfr("engine_start(%s): transfer=0x%p.\n", engine->name, transfer);
 
-  /* initialize number of descriptors of dequeued transfers */
-  engine->desc_dequeued = 0;
-
   /* write lower 32-bit of bus address of transfer first descriptor */
   w = cpu_to_le32(PCI_DMA_L(transfer->desc_bus));
   dbg_tfr("writel(0x%08x to 0x%p) (first_desc_lo)\n",
@@ -774,17 +771,12 @@ engine_service_transfer_list(struct xdma_engine* engine,
   while (!list_empty(&engine->transfer_list) &&
          ((transfer = list_entry(
              engine->transfer_list.next, struct xdma_transfer, entry))) &&
-         (!transfer->cyclic) &&
-         (pdesc_completed > engine->desc_dequeued + transfer->desc_num)) {
-    /* remove this transfer from pdesc_completed */
-    engine->desc_dequeued += transfer->desc_num;
+         (!transfer->cyclic) && (pdesc_completed > transfer->desc_num)) {
     dbg_tfr("%s engine completed non-cyclic xfer 0x%p (%d desc)\n",
             engine->name,
             transfer,
             transfer->desc_num);
 
-    /* add to dequeued number of descriptors during this run */
-    engine->desc_dequeued += transfer->desc_num;
     /* mark transfer as succesfully completed */
     transfer->state = TRANSFER_STATE_COMPLETED;
 
@@ -891,8 +883,6 @@ engine_service_final_transfer(struct xdma_engine* engine,
      */
     complete(&transfer->completion);
 
-    /* add to dequeued number of descriptors during this run */
-    engine->desc_dequeued += transfer->desc_num;
     /* remove completed transfer from list */
     list_del(engine->transfer_list.next);
   }
@@ -1175,15 +1165,11 @@ engine_service(struct xdma_engine* engine, int desc_writeback)
             transfer,
             (int)transfer->desc_num);
 
-    dbg_tfr("Engine completed %u desc, %u not yet dequeued\n",
-            desc_count,
-            desc_count - engine->desc_dequeued);
+    dbg_tfr(
+      "Engine completed %u/%u descriptors\n", desc_count, transfer->desc_num);
 
     engine_service_perf(engine, desc_count);
   }
-
-  /* account for already dequeued transfers during this engine run */
-  desc_count -= engine->desc_dequeued;
 
   /* Process all but the last transfer */
   engine_service_transfer_list(engine, desc_count);
@@ -2443,10 +2429,7 @@ transfer_abort(struct xdma_engine* engine, struct xdma_transfer* transfer)
   BUG_ON(!transfer);
   BUG_ON(transfer->desc_num == 0);
 
-  pr_info("abort transfer 0x%p, desc %u, engine desc queued %u.\n",
-          transfer,
-          transfer->desc_num,
-          engine->desc_dequeued);
+  pr_info("abort transfer 0x%p, desc %u.\n", transfer, transfer->desc_num);
 
   head = list_entry(engine->transfer_list.next, struct xdma_transfer, entry);
   if (head == transfer)

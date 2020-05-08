@@ -454,7 +454,6 @@ struct xdma_engine
   int len_granularity; /* transfer length multiple */
   int addr_bits;       /* HW datapath address width */
   int channel;         /* engine indices */
-  u32 desc_dequeued;   /* num descriptors of completed transfers */
   u32 status;          /* last known status of device */
 
   /* Transfer list management */
