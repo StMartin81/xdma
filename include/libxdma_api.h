@@ -85,10 +85,10 @@ xdma_device_close(struct pci_dev* pdev, void* dev_handle);
 /*
  * xdma_device_restart - restart the fpga
  * @pdev: ptr to struct pci_dev
- * TODO:
+ * @TODO:
  *	may need more refining on the parameter list
  * return < 0 in case of error
- * TODO: exact error code will be defined later
+ * @TODO: exact error code will be defined later
  */
 int
 xdma_device_restart(struct pci_dev* pdev, void* dev_handle);
@@ -110,7 +110,7 @@ xdma_device_restart(struct pci_dev* pdev, void* dev_handle);
  * @name: to be passed to the handler, ignored if handler is NULL`
  * @dev: to be passed to the handler, ignored if handler is NULL`
  * return < 0 in case of error
- * TODO: exact error code will be defined later
+ * @TODO: exact error code will be defined later
  */
 int
 xdma_user_isr_register(struct xdma_dev* dev_hndl,
@@ -123,7 +123,7 @@ xdma_user_isr_register(struct xdma_dev* dev_hndl,
  * @pdev: ptr to the the pci_dev struct
  * @mask: bitmask of user interrupts (0 ~ 15)to be registered
  * return < 0 in case of error
- * TODO: exact error code will be defined later
+ * @TODO: exact error code will be defined later
  */
 int
 xdma_user_isr_enable(struct xdma_dev* dev_hndl, unsigned int mask);
@@ -142,7 +142,7 @@ xdma_user_isr_disable(struct xdma_dev* dev_hndl, unsigned int mask);
  * @timeout: timeout in mili-seconds, *currently ignored
  * return # of bytes transfered or
  *	 < 0 in case of error
- * TODO: exact error code will be defined later
+ * @TODO: exact error code will be defined later
  */
 ssize_t
 xdma_xfer_submit(struct xdma_dev* dev_hndl,
