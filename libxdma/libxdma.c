@@ -4506,13 +4506,16 @@ cyclic_shutdown_polled(struct xdma_engine* engine)
 {
   BUG_ON(!engine);
 
-  spin_lock(&engine->lock);
-
   dbg_tfr("Polling for shutdown completion\n");
+  /* @TODO: Implement timeout mechanism if engine never leaves busy state */
   do {
+    spin_lock(&engine->lock);
     engine_status_read(engine, 1, 0);
+    spin_unlock(&engine->lock);
     schedule();
   } while (engine->status & XDMA_STAT_BUSY);
+
+  spin_lock(&engine->lock);
 
   if ((engine->running) && !(engine->status & XDMA_STAT_BUSY)) {
     dbg_tfr("Engine has stopped\n");
