@@ -804,7 +804,7 @@ engine_err_handle(struct xdma_engine* engine,
   if (engine->status & XDMA_STAT_BUSY) {
     value = read_register(&engine->regs->status);
     if ((value & XDMA_STAT_BUSY) && printk_ratelimit())
-      pr_info("%s has errors but is still BUSY\n", engine->name);
+      pr_err("engine %s has errors but is still BUSY\n", engine->name);
   }
 
   if (printk_ratelimit()) {
