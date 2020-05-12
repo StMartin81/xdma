@@ -64,6 +64,7 @@ char_bypass_read(struct file* file, char __user* buf, size_t count, loff_t* pos)
   struct list_head* idx;
   size_t buf_offset = 0;
   int rc = 0;
+  unsigned long flags;
 
   rc = xcdev_check(__func__, xcdev, 1);
   if (rc < 0)
@@ -88,7 +89,7 @@ char_bypass_read(struct file* file, char __user* buf, size_t count, loff_t* pos)
     return -ENODEV;
   }
 
-  spin_lock(&engine->lock);
+  spin_lock_irqsave(&engine->lock, flags);
 
   if (!list_empty(&engine->transfer_list)) {
     list_for_each(idx, &engine->transfer_list)
@@ -99,7 +100,7 @@ char_bypass_read(struct file* file, char __user* buf, size_t count, loff_t* pos)
     }
   }
 
-  spin_unlock(&engine->lock);
+  spin_unlock_irqrestore(&engine->lock, flags);
 
   if (rc < 0)
     return rc;
@@ -123,6 +124,7 @@ char_bypass_write(struct file* file,
   int rc = 0;
   int copy_err;
   void* base_address;
+  unsigned long flags;
 
   rc = xcdev_check(__func__, xcdev, 1);
   if (rc < 0)
@@ -147,7 +149,7 @@ char_bypass_write(struct file* file,
 
   dbg_sg("In char_bypass_write()\n");
 
-  spin_lock(&engine->lock);
+  spin_lock_irqsave(&engine->lock, flags);
 
   /* Write descriptor data to the bypass BAR */
   base_address = xdev->bar[xdev->bypass_bar_idx];
@@ -167,7 +169,7 @@ char_bypass_write(struct file* file,
     }
   }
 
-  spin_unlock(&engine->lock);
+  spin_unlock_irqrestore(&engine->lock, flags);
 
   return rc;
 }
