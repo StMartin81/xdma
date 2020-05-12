@@ -112,7 +112,6 @@ char_bypass_write(struct file* file,
   struct xdma_cdev* xcdev = (struct xdma_cdev*)file->private_data;
 
   u32 desc_data;
-  u32* bypass_addr;
   size_t buf_offset = 0;
   int rc = 0;
   int copy_err;
@@ -146,13 +145,10 @@ char_bypass_write(struct file* file,
 
   /* Write descriptor data to the bypass BAR */
   base_address = xdev->bar[xdev->bypass_bar_idx];
-  bypass_addr = (u32*)base_address;
-  bypass_addr += engine->bypass_offset;
   while (buf_offset < count) {
     copy_err = copy_from_user(&desc_data, &buf[buf_offset], sizeof(u32));
     if (!copy_err) {
-      write_register(
-        desc_data, base_address, (size_t)bypass_addr - (size_t)base_address);
+      write_register(desc_data, base_address, (size_t)engine->bypass_offset);
       buf_offset += sizeof(u32);
       rc = buf_offset;
     } else {

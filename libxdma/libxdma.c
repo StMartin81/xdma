@@ -775,6 +775,10 @@ engine_err_handle(struct xdma_engine* engine,
   xdma_engine_stop(engine);
 }
 
+/**
+ * must be called with engine->lock already acquired
+ *
+ */
 void
 engine_service_final_transfer(struct xdma_engine* engine,
                               u32 const pdesc_completed)
@@ -3066,7 +3070,7 @@ xdma_xfer_submit(struct xdma_dev* xdev,
       xfer->sgt = sgt;
     }
 
-    dbg_tfr("xfer, %u, ep 0x%llx, done %lu, sg %u/%u.\n",
+    dbg_tfr("xfer, len %u, ep 0x%llx, done %lu, sg %u/%u.\n",
             xfer->len,
             req->ep_addr,
             done,
@@ -3173,9 +3177,9 @@ EXPORT_SYMBOL_GPL(xdma_xfer_submit);
 int
 xdma_performance_submit(struct xdma_dev* xdev, struct xdma_engine* engine)
 {
-  u8* buffer_virt;
   u32 max_consistent_size = 128 * 32 * 1024; /* 1024 pages, 4MB */
-  dma_addr_t buffer_bus;                     /* bus address */
+  dma_addr_t buffer_bus; /* bus address; this is where the engine reads/writes
+                            data from/to */
   struct xdma_transfer* transfer;
   u64 ep_addr = 0;
   u32 num_desc_in_a_loop = 128;
@@ -3190,8 +3194,7 @@ xdma_performance_submit(struct xdma_dev* xdev, struct xdma_engine* engine)
     num_desc_in_a_loop = size / size_in_desc;
   }
 
-  buffer_virt =
-    dma_alloc_coherent(&xdev->pdev->dev, size, &buffer_bus, GFP_KERNEL);
+  dma_alloc_coherent(&xdev->pdev->dev, size, &buffer_bus, GFP_KERNEL);
 
   /* allocate transfer data structure */
   transfer = kzalloc(sizeof(struct xdma_transfer), GFP_KERNEL);
@@ -3865,6 +3868,7 @@ xdma_base_exit(void)
 module_init(xdma_base_init);
 module_exit(xdma_base_exit);
 #endif
+
 /* makes an existing transfer cyclic */
 static void
 xdma_transfer_cyclic(struct xdma_transfer* transfer)
@@ -4048,12 +4052,12 @@ complete_cyclic(struct xdma_engine* engine, char __user* buf, size_t count)
   head = engine->rx_head;
 
   /* iterate over newly received results */
-  /* TODO: When an overrun occurred this function would return garbage data to
+  /* @TODO: When an overrun occurred this function would return garbage data to
    * the user as it would simply continue to run until another interrupt was
    * received and engine->rx_head != engine->rx_tail or an EOP was detected in
    * the status. Probably it would be better to just return an error code to the
    * user and to disable the streaming mode. */
-  while (engine->rx_head != engine->rx_tail || engine->rx_overrun) {
+  while ((engine->rx_head != engine->rx_tail) || engine->rx_overrun) {
 
     WARN_ON(result[engine->rx_head].status == 0);
 
@@ -4109,7 +4113,7 @@ complete_cyclic(struct xdma_engine* engine, char __user* buf, size_t count)
     }
   }
 
-  /* TODO: What happens if another IRQ occurred after the spinlock was released
+  /* @TODO: What happens if another IRQ occurred after the spinlock was released
    * but the data was not copied to the user yet? Is it possible that the
    * SG descriptors could be overwritten with new contents and that an overflow
    * would be undetected in this case? */
@@ -4158,14 +4162,14 @@ xdma_engine_read_cyclic(struct xdma_engine* engine,
     rc_len += rc;
 
     i++;
-    /* TODO: Shouldn't an error be set if no EOP was set after 10 loop
+    /* @TODO: Shouldn't an error be set if no EOP was set after 10 loop
      * iterations? */
     if (i > 10)
       break;
   } while (!engine->eop_found);
 
-  /* TODO: Why has eop_found to be set to 0 here? It will be initialized to 0 by
-   * xdma_cyclic_transfer_setup anyways and it doesn't seem to get used later
+  /* @TODO: Why has eop_found to be set to 0 here? It will be initialized to 0
+   * by xdma_cyclic_transfer_setup anyways and it doesn't seem to get used later
    * on. */
   if (enable_credit_mp)
     engine->eop_found = 0;
@@ -4364,6 +4368,7 @@ cyclic_shutdown_polled(struct xdma_engine* engine)
 
   spin_lock(&engine->lock);
 
+  /* @TODO: Error handling when engine is still in busy state */
   if (!(engine->status & XDMA_STAT_BUSY)) {
     dbg_tfr("Engine has stopped\n");
     engine_service_shutdown(engine);

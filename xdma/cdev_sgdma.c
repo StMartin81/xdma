@@ -221,6 +221,9 @@ char_sgdma_map_user_buf_to_sgl(struct xdma_io_cb* cb, bool write)
 
   for (i = 1; i < pages_nr; i++) {
     if (cb->pages[i - 1] == cb->pages[i]) {
+      /* @TODO: Why can pinned pages be duplicated?
+       * Why is this check only for consecutive pages?
+       */
       pr_err("duplicate pages, %zu, %zu.\n", i - 1, i);
       rv = -EFAULT;
       cb->pages_nr = pages_nr;
@@ -559,6 +562,10 @@ char_sgdma_close(struct inode* inode, struct file* file)
 
   engine = xcdev->engine;
 
+  /* @TODO: engine-> lock is not acquired -> shouldn't it be locked before
+   * checking the engine status?
+   *
+   * It will be locked in xdma_cyclic_transfer_teardown */
   if (engine->streaming && engine->dir == DMA_FROM_DEVICE) {
     engine->device_open = 0;
     if (engine->cyclic_req)
