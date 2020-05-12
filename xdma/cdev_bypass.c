@@ -60,8 +60,6 @@ char_bypass_read(struct file* file, char __user* buf, size_t count, loff_t* pos)
   struct xdma_dev* xdev;
   struct xdma_engine* engine;
   struct xdma_cdev* xcdev = (struct xdma_cdev*)file->private_data;
-  struct xdma_transfer* transfer;
-  struct list_head* idx;
   size_t buf_offset = 0;
   int rc = 0;
   unsigned long flags;
@@ -91,13 +89,8 @@ char_bypass_read(struct file* file, char __user* buf, size_t count, loff_t* pos)
 
   spin_lock_irqsave(&engine->lock, flags);
 
-  if (!list_empty(&engine->transfer_list)) {
-    list_for_each(idx, &engine->transfer_list)
-    {
-      transfer = list_entry(idx, struct xdma_transfer, entry);
-
-      rc = copy_desc_data(transfer, buf, &buf_offset, count);
-    }
+  if (engine->transfer) {
+    rc = copy_desc_data(engine->transfer, buf, &buf_offset, count);
   }
 
   spin_unlock_irqrestore(&engine->lock, flags);

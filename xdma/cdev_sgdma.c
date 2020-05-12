@@ -410,8 +410,10 @@ ioctl_do_perf_stop(struct xdma_engine* engine, unsigned long arg)
       return -EINVAL;
     }
 
-    if (transfer)
+    if (transfer) {
       kfree(transfer);
+      engine->transfer = NULL;
+    }
   } else {
     dbg_perf("engine->xdma_perf == NULL?\n");
   }

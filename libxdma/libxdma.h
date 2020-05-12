@@ -227,8 +227,7 @@ enum transfer_state
   TRANSFER_STATE_NEW = 0,
   TRANSFER_STATE_SUBMITTED,
   TRANSFER_STATE_COMPLETED,
-  TRANSFER_STATE_FAILED,
-  TRANSFER_STATE_ABORTED
+  TRANSFER_STATE_FAILED
 };
 
 enum shutdown_state
@@ -399,7 +398,6 @@ struct sw_desc
 /* Describes a (SG DMA) single transfer for the engine */
 struct xdma_transfer
 {
-  struct list_head entry;      /* queue of non-completed transfers */
   struct xdma_desc* desc_virt; /* virt addr of the 1st descriptor */
   dma_addr_t desc_bus;         /* bus addr of the first descriptor */
   u32 desc_num;                /* number of descriptors in transfer */
@@ -448,7 +446,6 @@ struct xdma_engine
   enum shutdown_state shutdown; /* engine shutdown mode */
   enum dma_data_direction dir;
   int device_open;   /* flag if engine node open, ST mode only */
-  int running;       /* flag if the driver started engine */
   int non_incr_addr; /* flag if non-incremental addressing used */
   int streaming;
   int addr_align;      /* source/dest alignment in bytes */
@@ -458,7 +455,7 @@ struct xdma_engine
   u32 status;          /* last known status of device */
 
   /* Transfer list management */
-  struct list_head transfer_list; /* queue of transfers */
+  struct xdma_transfer* transfer; /* current transfer */
 
   /* Members applicable to AXI-ST C2H (cyclic) transfers */
   struct xdma_result* cyclic_result;
