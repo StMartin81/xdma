@@ -3199,7 +3199,7 @@ xdma_xfer_submit(struct xdma_dev* xdev,
     struct xdma_transfer* xfer;
 
     /* one transfer at a time */
-    spin_lock(&engine->desc_lock);
+    down_interruptible(&engine->desc_lock);
 
     /* build transfer */
     rv = transfer_init(engine, req);
@@ -3300,7 +3300,7 @@ xdma_xfer_submit(struct xdma_dev* xdev,
   destroy_transfer:
     transfer_destroy(xdev, xfer);
   release_desc_lock:
-    spin_unlock(&engine->desc_lock);
+    up(&engine->desc_lock);
 
     if (rv < 0)
       goto unmap_sgl;
@@ -3444,7 +3444,7 @@ alloc_dev_instance(struct pci_dev* pdev)
   engine = xdev->engine_h2c;
   for (i = 0; i < XDMA_CHANNEL_NUM_MAX; i++, engine++) {
     spin_lock_init(&engine->lock);
-    spin_lock_init(&engine->desc_lock);
+    sema_init(&engine->desc_lock, 1);
     INIT_LIST_HEAD(&engine->transfer_list);
     init_completion(&engine->shutdown_completion);
   }
@@ -3452,7 +3452,7 @@ alloc_dev_instance(struct pci_dev* pdev)
   engine = xdev->engine_c2h;
   for (i = 0; i < XDMA_CHANNEL_NUM_MAX; i++, engine++) {
     spin_lock_init(&engine->lock);
-    spin_lock_init(&engine->desc_lock);
+    sema_init(&engine->desc_lock, 1);
     INIT_LIST_HEAD(&engine->transfer_list);
     init_completion(&engine->shutdown_completion);
   }

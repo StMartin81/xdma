@@ -28,6 +28,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/semaphore.h>
 #include <linux/swait.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
@@ -485,7 +486,7 @@ struct xdma_engine
   u32 irq_bitmask;         /* IRQ bit mask for this engine */
   struct work_struct work; /* Work queue for interrupt handling */
 
-  spinlock_t desc_lock; /* protects concurrent access */
+  struct semaphore desc_lock; /* protects concurrent access */
   dma_addr_t desc_bus;
   struct xdma_desc* desc;
 
