@@ -2642,8 +2642,7 @@ engine_cyclic_stop(struct xdma_engine* engine)
         dbg_perf("Stopping perf transfer on %s\n", engine->name);
       else
         dbg_perf("Stopping cyclic transfer on %s\n", engine->name);
-      /* make sure the handler sees correct transfer state */
-      transfer->cyclic = 1;
+
       /*
        * set STOP flag and interrupt on completion, on the
        * last descriptor
