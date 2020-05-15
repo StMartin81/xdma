@@ -230,6 +230,13 @@ enum transfer_state
   TRANSFER_STATE_FAILED
 };
 
+enum transfer_type
+{
+  CYCLIC_REQ = 1,
+  IRQ_MODE = 2,
+  POLL_MODE = 4
+};
+
 enum shutdown_state
 {
   ENGINE_SHUTDOWN_NONE = 0,    /* No shutdown in progress */
@@ -405,7 +412,7 @@ struct xdma_transfer
   struct completion completion;
 
   enum transfer_state state; /* state of the transfer */
-  int cyclic;                /* flag if transfer is cyclic */
+  u32 transfer_type;         /* flag if transfer is cyclic */
   unsigned int len; /* total number of bytes which are scheduled / were already
                        transferred */
 };

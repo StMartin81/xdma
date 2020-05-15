@@ -822,7 +822,7 @@ engine_service_final_transfer(struct xdma_engine* engine,
               pdesc_completed,
               transfer->desc_num);
 
-      if (!transfer->cyclic) {
+      if (!(transfer->transfer_type & CYCLIC_REQ)) {
         /*
          * if the engine stopped on this transfer,
          * it should be the last
@@ -2488,7 +2488,7 @@ engine_cyclic_stop(struct xdma_engine* engine)
 
     xdma_engine_stop(engine);
 
-    if (transfer->cyclic) {
+    if (transfer->transfer_type & CYCLIC_REQ) {
       if (engine->xdma_perf)
         dbg_perf("Stopping perf transfer on %s\n", engine->name);
       else
@@ -3215,7 +3215,7 @@ xdma_performance_submit(struct xdma_dev* xdev, struct xdma_engine* engine)
                  transfer->desc_virt,
                  transfer->desc_bus);
 
-  transfer->cyclic = 1;
+  transfer->transfer_type |= CYCLIC_REQ;
 
   /* initialize wait queue */
   init_completion(&transfer->completion);
@@ -3852,7 +3852,7 @@ xdma_transfer_cyclic(struct xdma_transfer* transfer)
                  transfer->desc_virt,
                  transfer->desc_bus);
   /* remember transfer is cyclic */
-  transfer->cyclic = 1;
+  transfer->transfer_type = CYCLIC_REQ;
 }
 
 static int
