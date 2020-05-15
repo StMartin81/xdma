@@ -405,13 +405,9 @@ struct xdma_transfer
   struct completion completion;
 
   enum transfer_state state; /* state of the transfer */
-  unsigned int flags;
-#define XFER_FLAG_NEED_UNMAP 0x1
-  int cyclic;          /* flag if transfer is cyclic */
-  int last_in_request; /* flag if last within request */
+  int cyclic;                /* flag if transfer is cyclic */
   unsigned int len; /* total number of bytes which are scheduled / were already
                        transferred */
-  struct sg_table* sgt;
 };
 
 struct xdma_request_cb

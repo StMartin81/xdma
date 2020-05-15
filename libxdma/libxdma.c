@@ -2071,13 +2071,11 @@ transfer_dump(struct xdma_transfer* transfer)
   int i;
   struct xdma_desc* desc_virt = transfer->desc_virt;
 
-  pr_info("xfer 0x%p, state 0x%x, f 0x%x, dir %d, len %u, last %d.\n",
+  pr_info("xfer 0x%p, state 0x%x, dir %d, len %u.\n",
           transfer,
           transfer->state,
-          transfer->flags,
           transfer->dir,
-          transfer->len,
-          transfer->last_in_request);
+          transfer->len);
 
   pr_info("transfer 0x%p, desc %u, bus 0x%llx.\n",
           transfer,
@@ -2740,23 +2738,6 @@ engine_init(struct xdma_engine* engine,
   return 0;
 }
 
-/* transfer_destroy() - free transfer */
-static void
-transfer_destroy(struct xdma_dev* xdev, struct xdma_transfer* xfer)
-{
-  /* free descriptors */
-  xdma_desc_done(xfer->desc_virt);
-
-  if (xfer->last_in_request && (xfer->flags & XFER_FLAG_NEED_UNMAP)) {
-    struct sg_table* sgt = xfer->sgt;
-
-    if (sgt->nents) {
-      pci_unmap_sg(xdev->pdev, sgt->sgl, sgt->nents, xfer->dir);
-      sgt->nents = 0;
-    }
-  }
-}
-
 static int
 transfer_build(struct xdma_engine* engine,
                struct xdma_request_cb* req,
@@ -3058,17 +3039,10 @@ xdma_xfer_submit(struct xdma_dev* xdev,
     if (rv < 0) {
       goto release_desc_lock;
     }
+
     xfer = &req->xfer;
 
-    if (!dma_mapped)
-      xfer->flags = XFER_FLAG_NEED_UNMAP;
-
-    /* last transfer for the given request? */
     sw_desc_cnt -= xfer->desc_num;
-    if (!sw_desc_cnt) {
-      xfer->last_in_request = 1;
-      xfer->sgt = sgt;
-    }
 
     dbg_tfr("xfer, len %u, ep 0x%llx, done %lu, sg %u/%u.\n",
             xfer->len,
@@ -3149,7 +3123,7 @@ xdma_xfer_submit(struct xdma_dev* xdev,
     }
 
   destroy_transfer:
-    transfer_destroy(xdev, xfer);
+    xdma_desc_done(xfer->desc_virt);
     engine->transfer = NULL;
   release_desc_lock:
     up(&engine->desc_lock);
