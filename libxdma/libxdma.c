@@ -4287,6 +4287,8 @@ xdma_cyclic_transfer_setup(struct xdma_engine* engine)
   xfer = &request->xfer;
   xfer->transfer_settings |= CYCLIC_REQ;
 
+  /* one transfer at a time */
+  down_interruptible(&engine->transfer_lock);
   spin_lock_irqsave(&engine->lock, flags);
   if (engine->request) {
     pr_info("%s: Engine has already a transfer scheduled.\n", engine->name);
@@ -4338,11 +4340,10 @@ xdma_cyclic_transfer_setup(struct xdma_engine* engine)
 
   spin_unlock_irqrestore(&engine->lock, flags);
 
-  /* TODO: This is dangerous: Engine is  no started yet but spinlock is already
-   * released */
-
   /* start cyclic transfer */
   rc = start_request(engine, request);
+
+  up(&engine->transfer_lock);
 
   return rc;
 
