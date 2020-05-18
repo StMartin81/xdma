@@ -455,12 +455,12 @@ struct xdma_engine
   int channel;         /* engine indices */
   u32 status;          /* last known status of device */
 
+  struct xdma_request_cb* request;
+
   /* Members applicable to AXI-ST C2H (cyclic) transfers */
   struct xdma_result* cyclic_result;
   dma_addr_t cyclic_result_bus; /* bus addr for transfer */
-  struct xdma_request_cb* request;
-  struct sg_table cyclic_sgt;
-  u8 eop_found; /* used only for cyclic(rx:c2h) */
+  u8 eop_found;                 /* used only for cyclic(rx:c2h) */
   int eop_count;
   int rx_tail;    /* follows the HW */
   int rx_head;    /* where the SW reads from */

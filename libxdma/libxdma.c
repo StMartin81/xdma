@@ -3961,10 +3961,17 @@ copy_cyclic_to_user(struct xdma_engine* engine,
                     size_t count)
 {
   struct scatterlist* sg;
+  struct xdma_request_cb* request;
   int more = pkt_length;
 
   BUG_ON(!engine);
   BUG_ON(!buf);
+
+  if (!engine->request) {
+    pr_err("%s: no transfer active", engine->name);
+    return -EIO;
+  }
+  request = engine->request;
 
   dbg_tfr("%s, pkt_len %d, head %d, user buf idx %u.\n",
           engine->name,
@@ -3972,12 +3979,12 @@ copy_cyclic_to_user(struct xdma_engine* engine,
           head,
           engine->user_buffer_index);
 
-  sg = sglist_index(&engine->cyclic_sgt, head);
+  sg = sglist_index(request->sgt, head);
   if (!sg) {
     pr_info("%s, head %d OOR, sgl %u.\n",
             engine->name,
             head,
-            engine->cyclic_sgt.orig_nents);
+            request->sgt->orig_nents);
     return -EIO;
   }
 
@@ -4015,7 +4022,7 @@ copy_cyclic_to_user(struct xdma_engine* engine,
     head++;
     if (head >= CYCLIC_RX_PAGES_MAX) {
       head = 0;
-      sg = engine->cyclic_sgt.sgl;
+      sg = request->sgt->sgl;
     } else
       sg = sg_next(sg);
   }
@@ -4244,7 +4251,8 @@ int
 xdma_cyclic_transfer_setup(struct xdma_engine* engine)
 {
   struct xdma_dev* xdev;
-  struct xdma_request_cb* request;
+  struct sg_table* sgt = NULL;
+  struct xdma_request_cb* request = NULL;
   struct xdma_transfer* xfer;
   dma_addr_t bus;
   unsigned long flags;
@@ -4256,35 +4264,40 @@ xdma_cyclic_transfer_setup(struct xdma_engine* engine)
   xdev = engine->xdev;
   BUG_ON(!xdev);
 
+  base_address = get_config_bar_address(engine);
+
+  sgt = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
+  if (!sgt) {
+    rc = -ENOMEM;
+    goto cyclic_transfer_exit;
+  }
+
+  rc = sgt_alloc_with_pages(sgt, CYCLIC_RX_PAGES_MAX, engine->dir, xdev->pdev);
+  if (rc < 0) {
+    pr_info("%s cyclic pages %u OOM.\n", engine->name, CYCLIC_RX_PAGES_MAX);
+    goto cyclic_transfer_exit;
+  }
+
+  request = xdma_init_request(sgt, 0);
+  if (!request) {
+    pr_info("%s cyclic request OOM.\n", engine->name);
+    rc = -ENOMEM;
+    goto cyclic_transfer_free_sgt;
+  }
+  xfer = &request->xfer;
+  xfer->transfer_settings |= CYCLIC_REQ;
+
   spin_lock_irqsave(&engine->lock, flags);
   if (engine->request) {
-    pr_info("%s: exclusive access already taken.\n", engine->name);
+    pr_info("%s: Engine has already a transfer scheduled.\n", engine->name);
     rc = -EBUSY;
     goto cyclic_transfer_setup_release;
   }
-
-  base_address = get_config_bar_address(engine);
 
   engine->rx_tail = 0;
   engine->rx_head = 0;
   engine->rx_overrun = 0;
   engine->eop_found = 0;
-
-  rc = sgt_alloc_with_pages(
-    &engine->cyclic_sgt, CYCLIC_RX_PAGES_MAX, engine->dir, xdev->pdev);
-  if (rc < 0) {
-    pr_info("%s cyclic pages %u OOM.\n", engine->name, CYCLIC_RX_PAGES_MAX);
-    goto err_out;
-  }
-
-  request = xdma_init_request(&engine->cyclic_sgt, 0);
-  if (!request) {
-    pr_info("%s cyclic request OOM.\n", engine->name);
-    rc = -ENOMEM;
-    goto err_out;
-  }
-  xfer = &request->xfer;
-  xfer->transfer_settings |= CYCLIC_REQ;
 
 #ifdef __LIBXDMA_DEBUG__
   xdma_request_cb_dump(engine->request);
@@ -4329,27 +4342,26 @@ xdma_cyclic_transfer_setup(struct xdma_engine* engine)
    * released */
 
   /* start cyclic transfer */
-  start_request(engine, request);
+  rc = start_request(engine, request);
 
-  return 0;
+  return rc;
 
   /* unwind on errors */
-err_out:
-  if (engine->request) {
-    xdma_request_free(engine->request);
-    engine->request = NULL;
-  }
-
-  if (engine->cyclic_sgt.orig_nents) {
-    sgt_free_with_pages(&engine->cyclic_sgt, engine->dir, xdev->pdev);
-    engine->cyclic_sgt.orig_nents = 0;
-    engine->cyclic_sgt.nents = 0;
-    engine->cyclic_sgt.sgl = NULL;
-  }
 
 cyclic_transfer_setup_release:
   spin_unlock_irqrestore(&engine->lock, flags);
 
+  if (request) {
+    xdma_request_free(engine->request);
+    engine->request = NULL;
+  }
+
+cyclic_transfer_free_sgt:
+  if (sgt && sgt->orig_nents) {
+    sgt_free_with_pages(sgt, engine->dir, xdev->pdev);
+  }
+
+cyclic_transfer_exit:
   return rc;
 }
 
@@ -4433,16 +4445,14 @@ xdma_cyclic_transfer_teardown(struct xdma_engine* engine)
   /* obtain spin lock to atomically remove resources */
   spin_lock_irqsave(&engine->lock, flags);
 
-  if (engine->request) {
-    xdma_request_free(engine->request);
-    engine->request = NULL;
+  if (request->sgt->orig_nents) {
+    sgt_free_with_pages(request->sgt, engine->dir, xdev->pdev);
   }
 
-  if (engine->cyclic_sgt.orig_nents) {
-    sgt_free_with_pages(&engine->cyclic_sgt, engine->dir, xdev->pdev);
-    engine->cyclic_sgt.orig_nents = 0;
-    engine->cyclic_sgt.nents = 0;
-    engine->cyclic_sgt.sgl = NULL;
+  if (engine->request) {
+    kfree(engine->request->sgt);
+    xdma_request_free(engine->request);
+    engine->request = NULL;
   }
 
   spin_unlock_irqrestore(&engine->lock, flags);
