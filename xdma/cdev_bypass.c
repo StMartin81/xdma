@@ -89,8 +89,8 @@ char_bypass_read(struct file* file, char __user* buf, size_t count, loff_t* pos)
 
   spin_lock_irqsave(&engine->lock, flags);
 
-  if (engine->transfer) {
-    rc = copy_desc_data(engine->transfer, buf, &buf_offset, count);
+  if (engine->request) {
+    rc = copy_desc_data(&engine->request->xfer, buf, &buf_offset, count);
   }
 
   spin_unlock_irqrestore(&engine->lock, flags);

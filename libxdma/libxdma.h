@@ -230,11 +230,9 @@ enum transfer_state
   TRANSFER_STATE_FAILED
 };
 
-enum transfer_type
+enum transfer_settings
 {
-  CYCLIC_REQ = 1,
-  IRQ_MODE = 2,
-  POLL_MODE = 4
+  CYCLIC_REQ = 0x01
 };
 
 enum shutdown_state
@@ -412,7 +410,7 @@ struct xdma_transfer
   struct completion completion;
 
   enum transfer_state state; /* state of the transfer */
-  u32 transfer_type;         /* flag if transfer is cyclic */
+  u32 transfer_settings;     /* flag if transfer is cyclic */
   unsigned int len; /* total number of bytes which are scheduled / were already
                        transferred */
 };
@@ -457,13 +455,10 @@ struct xdma_engine
   int channel;         /* engine indices */
   u32 status;          /* last known status of device */
 
-  /* Transfer list management */
-  struct xdma_transfer* transfer; /* current transfer */
-
   /* Members applicable to AXI-ST C2H (cyclic) transfers */
   struct xdma_result* cyclic_result;
   dma_addr_t cyclic_result_bus; /* bus addr for transfer */
-  struct xdma_request_cb* cyclic_req;
+  struct xdma_request_cb* request;
   struct sg_table cyclic_sgt;
   u8 eop_found; /* used only for cyclic(rx:c2h) */
   int eop_count;
@@ -480,13 +475,14 @@ struct xdma_engine
 
   /* Members associated with interrupt mode support */
   struct completion shutdown_completion;
-  spinlock_t lock;         /* protects concurrent access */
-  int prev_cpu;            /* remember CPU# of (last) locker */
-  int msix_irq_line;       /* MSI-X vector for this engine */
-  u32 irq_bitmask;         /* IRQ bit mask for this engine */
-  struct work_struct work; /* Work queue for interrupt handling */
+  spinlock_t lock;                /* protects concurrent access */
+  struct semaphore transfer_lock; /* prevents starting a new transfer if there
+                                     is already one in progress */
+  int prev_cpu;                   /* remember CPU# of (last) locker */
+  int msix_irq_line;              /* MSI-X vector for this engine */
+  u32 irq_bitmask;                /* IRQ bit mask for this engine */
+  struct work_struct work;        /* Work queue for interrupt handling */
 
-  struct semaphore desc_lock; /* protects concurrent access */
   dma_addr_t desc_bus;
   struct xdma_desc* desc;
 
@@ -607,7 +603,7 @@ xdma_device_online(struct pci_dev* pdev, void* dev_handle);
 
 int
 xdma_performance_submit(struct xdma_dev* xdev, struct xdma_engine* engine);
-struct xdma_transfer*
+struct xdma_request_cb*
 engine_cyclic_stop(struct xdma_engine* engine);
 void
 enable_perf(struct xdma_engine* engine);

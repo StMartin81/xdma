@@ -387,7 +387,7 @@ ioctl_do_perf_start(struct xdma_engine* engine, unsigned long arg)
 static int
 ioctl_do_perf_stop(struct xdma_engine* engine, unsigned long arg)
 {
-  struct xdma_transfer* transfer = NULL;
+  struct xdma_request_cb* request = NULL;
   int rv;
 
   dbg_perf("IOCTL_XDMA_PERF_STOP\n");
@@ -399,7 +399,7 @@ ioctl_do_perf_stop(struct xdma_engine* engine, unsigned long arg)
   }
 
   /* stop measurement */
-  transfer = engine_cyclic_stop(engine);
+  request = engine_cyclic_stop(engine);
   dbg_perf("Waiting for measurement to stop\n");
 
   if (engine->xdma_perf) {
@@ -413,9 +413,9 @@ ioctl_do_perf_stop(struct xdma_engine* engine, unsigned long arg)
       return -EINVAL;
     }
 
-    if (transfer) {
-      kfree(transfer);
-      engine->transfer = NULL;
+    if (request) {
+      kfree(request);
+      engine->request = NULL;
     }
   } else {
     dbg_perf("engine->xdma_perf == NULL?\n");
@@ -568,7 +568,7 @@ char_sgdma_close(struct inode* inode, struct file* file)
    * It will be locked in xdma_cyclic_transfer_teardown */
   if (engine->streaming && engine->dir == DMA_FROM_DEVICE) {
     engine->device_open = 0;
-    if (engine->cyclic_req)
+    if (engine->request)
       return xdma_cyclic_transfer_teardown(engine);
   }
 
