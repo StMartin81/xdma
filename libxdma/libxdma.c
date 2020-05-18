@@ -3191,6 +3191,7 @@ xdma_performance_submit(struct xdma_dev* xdev, struct xdma_engine* engine)
 
   /* allocate transfer data structure */
   request = kzalloc(sizeof(struct xdma_request_cb), GFP_KERNEL);
+  /* @TODO: Perhaps exit more gracefully than with a kernel bug */
   BUG_ON(!request);
   transfer = &request->xfer;
 
