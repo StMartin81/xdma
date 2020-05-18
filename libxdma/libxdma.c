@@ -3263,7 +3263,7 @@ alloc_dev_instance(struct pci_dev* pdev)
   /* allocate zeroed device book keeping structure */
   xdev = kzalloc(sizeof(struct xdma_dev), GFP_KERNEL);
   if (!xdev) {
-    pr_info("OOM, xdma_dev.\n");
+    pr_err("OOM, xdma_dev.\n");
     return NULL;
   }
   spin_lock_init(&xdev->lock);
