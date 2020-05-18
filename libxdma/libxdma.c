@@ -2775,13 +2775,18 @@ transfer_build(struct xdma_engine const* engine,
   return 0;
 }
 
-static int
-transfer_init(struct xdma_engine const* engine, struct xdma_request_cb* request)
+/* this function has to be called with struct xdma_engine.transfer_lock locked
+ */
+/* @TODO: Allocate memory for desciptors in struct xdma_transfer.desc_virt
+ * Then the lock would not be needed here
+ */
+void
+transfer_init(struct xdma_engine* engine, struct xdma_request_cb* request)
 {
   u32 desc_max = 0;
   u32 i = 0;
   u32 last = 0;
-  u32 control;
+  u32 control = 0;
   struct xdma_transfer* xfer;
 
   BUG_ON(!engine);
@@ -2811,9 +2816,12 @@ transfer_init(struct xdma_engine const* engine, struct xdma_request_cb* request)
   transfer_build(engine, request, desc_max);
 
   /* stop engine, EOP for AXI ST, req IRQ on last descriptor */
-  control = XDMA_DESC_STOPPED;
-  control |= XDMA_DESC_EOP;
-  control |= XDMA_DESC_COMPLETED;
+  control |= XDMA_DESC_STOPPED;
+  if (engine->streaming) {
+    control |= XDMA_DESC_EOP;
+  } else {
+    control |= XDMA_DESC_COMPLETED;
+  }
   xdma_desc_control_set(&(xfer->desc_virt[last]), control);
 
   xfer->desc_num = desc_max;
@@ -3048,10 +3056,7 @@ xdma_xfer_submit(struct xdma_dev* xdev,
     down_interruptible(&engine->transfer_lock);
 
     /* build transfer */
-    rv = transfer_init(engine, req);
-    if (rv < 0) {
-      goto release_transfer_lock;
-    }
+    transfer_init(engine, req);
 
     sw_desc_cnt -= xfer->desc_num;
 
@@ -4283,9 +4288,7 @@ xdma_cyclic_transfer_setup(struct xdma_engine* engine)
   xdma_request_cb_dump(engine->request);
 #endif
 
-  rc = transfer_init(engine, request);
-  if (rc < 0)
-    goto err_out;
+  transfer_init(engine, request);
 
   xfer = &engine->request->xfer;
 
