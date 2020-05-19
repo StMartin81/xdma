@@ -3115,6 +3115,9 @@ xdma_xfer_submit(struct xdma_dev* xdev,
                 xfer->len,
                 req->ep_addr - xfer->len);
 
+        spin_lock_irqsave(&engine->lock, flags);
+        engine_status_read(engine, 1, 1);
+        spin_unlock_irqrestore(&engine->lock, flags);
 #ifdef __LIBXDMA_DEBUG__
         transfer_dump(xfer);
         sgt_dump(sgt);
@@ -3129,7 +3132,7 @@ xdma_xfer_submit(struct xdma_dev* xdev,
                 xfer->state,
                 req->ep_addr);
         spin_lock_irqsave(&engine->lock, flags);
-        engine_status_read(engine, 0, 1);
+        engine_status_read(engine, 1, 1);
 
         xdma_engine_stop(engine);
         spin_unlock_irqrestore(&engine->lock, flags);
