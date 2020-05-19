@@ -650,6 +650,10 @@ engine_start_mode_config(struct xdma_engine* engine)
   /* make sure descriptors are written to memory */
   wmb();
 
+#ifdef __LIBXDMA_DEBUG__
+  engine_status_read(engine, 0, 1);
+#endif
+
   dbg_tfr(
     "writel(0x%08x to 0x%p) (control)\n", w, (void*)&engine->regs->control);
   /* start the engine */
@@ -717,8 +721,6 @@ engine_start(struct xdma_engine* engine)
                    (size_t)base_address);
 
   engine_start_mode_config(engine);
-
-  engine_status_read(engine, 1, 0);
 
   dbg_tfr("%s engine 0x%p now running\n", engine->name, engine);
 }
