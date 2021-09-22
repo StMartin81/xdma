@@ -2833,7 +2833,7 @@ transfer_init(struct xdma_engine* engine, struct xdma_request_cb* request)
   for (i = 0; i < xfer->desc_num; i++)
     xdma_desc_adjacent(&(xfer->desc_virt[i]), xfer->desc_num - i - 1u);
 
-  return 0;
+  return;
 }
 
 #ifdef __LIBXDMA_DEBUG__
