@@ -300,6 +300,10 @@ probe_one(struct pci_dev* pdev, const struct pci_device_id* id)
 
   dev_set_drvdata(&pdev->dev, xpdev);
 
+  rv = xdma_sysctl_init(&xpdev->enable_user_interrupt, xdev);
+  if (rv)
+    goto err_out;
+
   return 0;
 
 err_out:
@@ -319,6 +323,8 @@ remove_one(struct pci_dev* pdev)
   xpdev = dev_get_drvdata(&pdev->dev);
   if (!xpdev)
     return;
+
+  xdma_sysctl_free(&xpdev->enable_user_interrupt);
 
   pr_info("pdev 0x%p, xdev 0x%p, 0x%p.\n", pdev, xpdev, xpdev->xdev);
   xpdev_free(xpdev);

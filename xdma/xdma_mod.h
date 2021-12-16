@@ -46,6 +46,7 @@
 #include <linux/workqueue.h>
 
 #include "libxdma.h"
+#include "xdma_sysctl.h"
 
 #define MAGIC_ENGINE 0xEEEEEEEEUL
 #define MAGIC_DEVICE 0xDDDDDDDDUL
@@ -90,6 +91,9 @@ struct xdma_pci_dev
   struct xdma_cdev bypass_c2h_cdev[XDMA_CHANNEL_NUM_MAX];
   struct xdma_cdev bypass_h2c_cdev[XDMA_CHANNEL_NUM_MAX];
   struct xdma_cdev bypass_cdev_base;
+
+  /* Structure for user interrupts */
+  struct sysctl_data enable_user_interrupt;
 
   void* data;
 };
